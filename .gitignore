@@ -49,3 +49,7 @@ nohup.out
 
 # Keep outputs directory but not contents
 !analysis/outputs/.gitkeep
+
+# Legacy code and reference files
+R/
+docs/
