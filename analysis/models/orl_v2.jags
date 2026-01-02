@@ -1,0 +1,82 @@
+model {
+  # ORL Model for Iowa Gambling Task
+  # Outcome Representation Learning
+  # Fixed version with better numerical stability
+
+  # Hyperpriors
+  mu_Arew ~ dbeta(2, 2)
+  mu_Apun ~ dbeta(2, 2)
+  mu_K ~ dnorm(1, 1)T(0,)
+  mu_betaF ~ dnorm(0, 0.5)
+  mu_betaP ~ dnorm(0, 0.5)
+
+  sigma_Arew ~ dunif(0, 0.5)
+  sigma_Apun ~ dunif(0, 0.5)
+  sigma_K ~ dunif(0, 2)
+  sigma_betaF ~ dunif(0, 3)
+  sigma_betaP ~ dunif(0, 3)
+
+  # Subject-level parameters with truncation
+  for (s in 1:N) {
+    Arew[s] ~ dbeta(mu_Arew * (1/sigma_Arew^2 - 1), (1-mu_Arew) * (1/sigma_Arew^2 - 1))T(0.01, 0.99)
+    Apun[s] ~ dbeta(mu_Apun * (1/sigma_Apun^2 - 1), (1-mu_Apun) * (1/sigma_Apun^2 - 1))T(0.01, 0.99)
+    K[s] ~ dnorm(mu_K, 1/sigma_K^2)T(0.01, 10)
+    betaF[s] ~ dnorm(mu_betaF, 1/sigma_betaF^2)T(-10, 10)
+    betaP[s] ~ dnorm(mu_betaP, 1/sigma_betaP^2)T(-10, 10)
+  }
+
+  # Trial-by-trial updates
+  for (s in 1:N) {
+    # Initialize expected values, frequencies, and perseverance
+    for (d in 1:4) {
+      ev[s, 1, d] <- 0
+      ef[s, 1, d] <- 0
+      pers[s, 1, d] <- 0
+    }
+
+    for (t in 1:Tsubj[s]) {
+      # Compute choice probabilities with softmax
+      for (d in 1:4) {
+        # Combined utility
+        util_combined[s, t, d] <- ev[s, t, d] + ef[s, t, d] * betaF[s] + pers[s, t, d] * betaP[s]
+        exp_util[s, t, d] <- exp(util_combined[s, t, d])
+      }
+
+      # Softmax probabilities
+      for (d in 1:4) {
+        p[s, t, d] <- exp_util[s, t, d] / sum(exp_util[s, t, ])
+      }
+
+      # Observed choice
+      choice[s, t] ~ dcat(p[s, t, ])
+
+      # Determine sign of outcome for binary coding
+      sign_out[s, t] <- ifelse(outcome[s, t] > 0, 1, ifelse(outcome[s, t] < 0, -1, 0))
+
+      # Prediction errors for chosen deck
+      PE_val[s, t] <- outcome[s, t] - ev[s, t, choice[s, t]]
+      PE_freq[s, t] <- sign_out[s, t] - ef[s, t, choice[s, t]]
+
+      # Learning rates depend on outcome valence
+      lr_val[s, t] <- ifelse(outcome[s, t] >= 0, Arew[s], Apun[s])
+      lr_freq[s, t] <- ifelse(outcome[s, t] >= 0, Arew[s], Apun[s])
+      lr_fic[s, t] <- ifelse(outcome[s, t] >= 0, Apun[s], Arew[s])
+
+      # Update expected values, frequencies, and perseverance
+      for (d in 1:4) {
+        # Chosen deck updates
+        ev[s, t+1, d] <- equals(d, choice[s, t]) * (ev[s, t, d] + lr_val[s, t] * PE_val[s, t]) +
+                         (1 - equals(d, choice[s, t])) * ev[s, t, d]
+
+        # Frequency updates (chosen deck: factual, unchosen: fictive)
+        PE_freq_fic[s, t, d] <- -sign_out[s, t] / 3 - ef[s, t, d]
+
+        ef[s, t+1, d] <- equals(d, choice[s, t]) * (ef[s, t, d] + lr_freq[s, t] * PE_freq[s, t]) +
+                         (1 - equals(d, choice[s, t])) * (ef[s, t, d] + lr_fic[s, t] * PE_freq_fic[s, t, d])
+
+        # Perseverance: set to 1 for chosen, decay for all
+        pers[s, t+1, d] <- (equals(d, choice[s, t]) * 1 + (1 - equals(d, choice[s, t])) * pers[s, t, d]) / (1 + K[s])
+      }
+    }
+  }
+}

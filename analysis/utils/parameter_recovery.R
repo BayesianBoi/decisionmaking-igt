@@ -1,0 +1,283 @@
+# Parameter Recovery Analysis for IGT models
+# Run: source("analysis/utils/parameter_recovery.R")
+
+library(rjags)
+library(coda)
+
+#' Sample parameters from prior distributions
+#' @param model_name Model name ("pvl_delta", "vse", "orl")
+#' @param n_subj Number of subjects to simulate
+#' @return List of sampled parameters
+sample_from_prior <- function(model_name, n_subj = 20) {
+
+  if (model_name == "pvl_delta") {
+    # Sample group-level parameters
+    mu_A <- runif(1, 0, 1)
+    mu_alpha <- runif(1, 0, 2)
+    mu_cons <- runif(1, 0, 5)
+    mu_lambda <- runif(1, 0, 10)
+
+    sigma_A <- runif(1, 0, 0.3)
+    sigma_alpha <- runif(1, 0, 0.5)
+    sigma_cons <- runif(1, 0, 1)
+    sigma_lambda <- runif(1, 0, 2)
+
+    # Sample subject-level parameters
+    A <- pmin(pmax(rnorm(n_subj, mu_A, sigma_A), 0), 1)
+    alpha <- pmax(rnorm(n_subj, mu_alpha, sigma_alpha), 0.01)
+    cons <- pmax(rnorm(n_subj, mu_cons, sigma_cons), 0.01)
+    lambda <- pmax(rnorm(n_subj, mu_lambda, sigma_lambda), 0.01)
+
+    return(list(
+      A = A, alpha = alpha, cons = cons, lambda = lambda,
+      mu_A = mu_A, mu_alpha = mu_alpha, mu_cons = mu_cons, mu_lambda = mu_lambda
+    ))
+
+  } else if (model_name == "vse") {
+    mu_A <- runif(1, 0, 1)
+    mu_alpha <- runif(1, 0, 2)
+    mu_cons <- runif(1, 0, 5)
+    mu_lambda <- runif(1, 0, 10)
+    mu_epP <- runif(1, 0, 2)
+    mu_epN <- runif(1, 0, 2)
+    mu_K <- runif(1, 0, 1)
+    mu_w <- runif(1, 0, 1)
+
+    sigma_A <- runif(1, 0, 0.3)
+    sigma_alpha <- runif(1, 0, 0.5)
+    sigma_cons <- runif(1, 0, 1)
+    sigma_lambda <- runif(1, 0, 2)
+    sigma_epP <- runif(1, 0, 0.5)
+    sigma_epN <- runif(1, 0, 0.5)
+    sigma_K <- runif(1, 0, 0.2)
+    sigma_w <- runif(1, 0, 0.2)
+
+    A <- pmin(pmax(rnorm(n_subj, mu_A, sigma_A), 0), 1)
+    alpha <- pmax(rnorm(n_subj, mu_alpha, sigma_alpha), 0.01)
+    cons <- pmax(rnorm(n_subj, mu_cons, sigma_cons), 0.01)
+    lambda <- pmax(rnorm(n_subj, mu_lambda, sigma_lambda), 0.01)
+    epP <- pmax(rnorm(n_subj, mu_epP, sigma_epP), 0.01)
+    epN <- pmax(rnorm(n_subj, mu_epN, sigma_epN), 0.01)
+    K <- pmin(pmax(rnorm(n_subj, mu_K, sigma_K), 0), 1)
+    w <- pmin(pmax(rnorm(n_subj, mu_w, sigma_w), 0), 1)
+
+    return(list(
+      A = A, alpha = alpha, cons = cons, lambda = lambda,
+      epP = epP, epN = epN, K = K, w = w,
+      mu_A = mu_A, mu_alpha = mu_alpha, mu_cons = mu_cons, mu_lambda = mu_lambda,
+      mu_epP = mu_epP, mu_epN = mu_epN, mu_K = mu_K, mu_w = mu_w
+    ))
+
+  } else if (model_name == "orl") {
+    mu_Arew <- runif(1, 0, 1)
+    mu_Apun <- runif(1, 0, 1)
+    mu_K <- runif(1, 0, 5)
+    mu_betaF <- runif(1, -5, 5)
+    mu_betaP <- runif(1, -5, 5)
+
+    sigma_Arew <- runif(1, 0, 0.3)
+    sigma_Apun <- runif(1, 0, 0.3)
+    sigma_K <- runif(1, 0, 1)
+    sigma_betaF <- runif(1, 0, 2)
+    sigma_betaP <- runif(1, 0, 2)
+
+    Arew <- pmin(pmax(rnorm(n_subj, mu_Arew, sigma_Arew), 0), 1)
+    Apun <- pmin(pmax(rnorm(n_subj, mu_Apun, sigma_Apun), 0), 1)
+    K <- pmax(rnorm(n_subj, mu_K, sigma_K), 0.01)
+    betaF <- rnorm(n_subj, mu_betaF, sigma_betaF)
+    betaP <- rnorm(n_subj, mu_betaP, sigma_betaP)
+
+    return(list(
+      Arew = Arew, Apun = Apun, K = K, betaF = betaF, betaP = betaP,
+      mu_Arew = mu_Arew, mu_Apun = mu_Apun, mu_K = mu_K,
+      mu_betaF = mu_betaF, mu_betaP = mu_betaP
+    ))
+  }
+}
+
+#' Generate standard IGT reward structure
+#' @param n_trials Number of trials
+#' @return Array of deck outcomes (trial x outcome_type x deck)
+generate_igt_outcomes <- function(n_trials = 100) {
+  # Standard IGT deck structure
+  # Deck A: Immediate reward 100, occasional large loss
+  # Deck B: Immediate reward 100, occasional very large loss
+  # Deck C: Immediate reward 50, occasional small loss
+  # Deck D: Immediate reward 50, very occasional small loss
+
+  deck_outcomes <- array(0, dim = c(n_trials, 2, 4))
+
+  for (t in 1:n_trials) {
+    # Deck A: +100, loss every 10 trials
+    deck_outcomes[t, 1, 1] <- 100
+    deck_outcomes[t, 2, 1] <- ifelse(t %% 10 == 0, -250, 0)
+
+    # Deck B: +100, loss every 10 trials (larger)
+    deck_outcomes[t, 1, 2] <- 100
+    deck_outcomes[t, 2, 2] <- ifelse(t %% 10 == 0, -1250, 0)
+
+    # Deck C: +50, loss every 10 trials
+    deck_outcomes[t, 1, 3] <- 50
+    deck_outcomes[t, 2, 3] <- ifelse(t %% 10 == 0, -50, 0)
+
+    # Deck D: +50, loss every 10 trials (smaller)
+    deck_outcomes[t, 1, 4] <- 50
+    deck_outcomes[t, 2, 4] <- ifelse(t %% 10 == 0, -250, 0)
+  }
+
+  return(deck_outcomes)
+}
+
+#' Simulate data from PVL-Delta model (as in existing code)
+#' @param params Parameter list
+#' @param deck_outcomes IGT deck structure
+#' @param n_trials Number of trials
+#' @return List with simulated choices and outcomes
+simulate_data_pvl_delta <- function(params, deck_outcomes, n_trials) {
+  n_subj <- length(params$A)
+
+  choices <- matrix(NA, nrow = n_subj, ncol = n_trials)
+  outcomes <- matrix(NA, nrow = n_subj, ncol = n_trials)
+
+  for (s in 1:n_subj) {
+    ev <- rep(0, 4)
+
+    for (t in 1:n_trials) {
+      # Choice probabilities
+      sens <- 3^params$cons[s] - 1
+      exp_util <- exp(sens * ev)
+      p_choice <- exp_util / sum(exp_util)
+
+      # Sample choice
+      choice <- sample(1:4, size = 1, prob = p_choice)
+      choices[s, t] <- choice
+
+      # Get outcome
+      gain <- deck_outcomes[t, 1, choice]
+      loss <- deck_outcomes[t, 2, choice]
+      outcome <- (gain + loss) / 100  # Scale
+      outcomes[s, t] <- outcome
+
+      # Compute utility
+      if (outcome >= 0) {
+        util <- outcome^params$alpha[s]
+      } else {
+        util <- -params$lambda[s] * abs(outcome)^params$alpha[s]
+      }
+
+      # Update EV
+      ev[choice] <- ev[choice] + params$A[s] * (util - ev[choice])
+    }
+  }
+
+  return(list(choices = choices, outcomes = outcomes))
+}
+
+#' Run parameter recovery analysis
+#' @param model_name Model name
+#' @param n_subj Number of subjects to simulate
+#' @param n_trials Number of trials per subject
+#' @param output_dir Output directory
+#' @return Parameter recovery results
+run_parameter_recovery <- function(model_name = "pvl_delta",
+                                   n_subj = 20,
+                                   n_trials = 100,
+                                   output_dir = "analysis/outputs") {
+
+  cat(sprintf("=== Parameter Recovery: %s ===\n\n", model_name))
+
+  # Step 1: Sample true parameters
+  cat("Step 1: Sampling true parameters from prior...\n")
+  true_params <- sample_from_prior(model_name, n_subj)
+
+  # Step 2: Simulate data
+  cat("Step 2: Simulating choice data...\n")
+  deck_outcomes <- generate_igt_outcomes(n_trials)
+
+  if (model_name == "pvl_delta") {
+    sim_data <- simulate_data_pvl_delta(true_params, deck_outcomes, n_trials)
+  } else {
+    warning(sprintf("Simulation not implemented for %s", model_name))
+    return(NULL)
+  }
+
+  # Step 3: Prepare JAGS data
+  cat("Step 3: Preparing data for JAGS...\n")
+  jags_data <- list(
+    N = n_subj,
+    T = n_trials,
+    Tsubj = rep(n_trials, n_subj),
+    choice = sim_data$choices,
+    outcome = sim_data$outcomes
+  )
+
+  # Step 4: Fit model to simulated data
+  cat("Step 4: Fitting model to recover parameters...\n")
+  model_file <- sprintf("analysis/models/%s.jags", model_name)
+
+  jags_model <- jags.model(
+    file = model_file,
+    data = jags_data,
+    n.chains = 2,
+    n.adapt = 1000,
+    quiet = FALSE
+  )
+
+  update(jags_model, n.iter = 1000)
+
+  # Monitor parameters
+  if (model_name == "pvl_delta") {
+    params_to_monitor <- c("A", "alpha", "cons", "lambda")
+  }
+
+  samples <- coda.samples(
+    model = jags_model,
+    variable.names = params_to_monitor,
+    n.iter = 2000
+  )
+
+  # Step 5: Compare true vs recovered
+  cat("Step 5: Comparing true vs. recovered parameters...\n")
+  samples_matrix <- as.matrix(samples)
+
+  recovery_results <- list()
+
+  for (param in params_to_monitor) {
+    # Extract recovered parameters (posterior means)
+    param_cols <- grep(sprintf("^%s\\[", param), colnames(samples_matrix))
+    recovered <- colMeans(samples_matrix[, param_cols])
+
+    # True parameters
+    true <- true_params[[param]]
+
+    # Correlation
+    correlation <- cor(true, recovered)
+
+    recovery_results[[param]] <- data.frame(
+      subject = 1:n_subj,
+      true = true,
+      recovered = recovered,
+      error = recovered - true
+    )
+
+    cat(sprintf("  %s: r = %.3f\n", param, correlation))
+  }
+
+  # Save results
+  output_file <- file.path(output_dir, sprintf("%s_parameter_recovery.rds", model_name))
+  recovery_output <- list(
+    true_params = true_params,
+    simulated_data = sim_data,
+    recovered_samples = samples,
+    recovery_results = recovery_results
+  )
+  saveRDS(recovery_output, output_file)
+  cat(sprintf("\nParameter recovery results saved to: %s\n", output_file))
+
+  return(recovery_output)
+}
+
+# Run if executed as script
+if (!interactive()) {
+  recovery <- run_parameter_recovery("pvl_delta", n_subj = 10, n_trials = 100)
+}

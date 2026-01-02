@@ -1,0 +1,51 @@
+# Analysis outputs (model fits and intermediate results)
+analysis/outputs/*.rds
+analysis/outputs/*.log
+
+# Publication outputs (generated from fitted models)
+# Uncomment to track publication figures/tables in git:
+# analysis/outputs/publication/
+
+# But ignore if you prefer to regenerate them
+analysis/outputs/publication/figures/*.pdf
+analysis/outputs/publication/figures/*.png
+analysis/outputs/publication/tables/*.csv
+analysis/outputs/publication/*.txt
+
+# R files
+.Rhistory
+.RData
+.Rproj.user
+*.Rproj
+
+# System files
+.DS_Store
+._.DS_Store
+**/.DS_Store
+**/._.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*~
+*.swp
+
+# Log files
+*.log
+nohup.out
+
+# Temporary files
+*.tmp
+*.temp
+
+# Archive files (optional - uncomment if you don't want to track)
+# *.tar.gz
+# *.zip
+
+# IDE files
+.vscode/
+.idea/
+*.code-workspace
+
+# Keep outputs directory but not contents
+!analysis/outputs/.gitkeep

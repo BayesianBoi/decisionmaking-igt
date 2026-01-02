@@ -1,0 +1,59 @@
+model {
+  # PVL-Delta Model for Iowa Gambling Task
+  # Simplified version with better numerical stability
+
+  # Hyperpriors
+  mu_A ~ dbeta(2, 2)
+  mu_alpha ~ dnorm(0.5, 1)T(0,)
+  mu_cons ~ dnorm(1, 1)T(0,)
+  mu_lambda ~ dnorm(1, 1)T(0,)
+
+  sigma_A ~ dunif(0, 0.5)
+  sigma_alpha ~ dunif(0, 1)
+  sigma_cons ~ dunif(0, 2)
+  sigma_lambda ~ dunif(0, 3)
+
+  # Subject-level parameters
+  for (s in 1:N) {
+    A[s] ~ dbeta(mu_A * (1/sigma_A^2 - 1), (1-mu_A) * (1/sigma_A^2 - 1))T(0.01, 0.99)
+    alpha[s] ~ dnorm(mu_alpha, 1/sigma_alpha^2)T(0.01, 2)
+    cons[s] ~ dnorm(mu_cons, 1/sigma_cons^2)T(0.01, 5)
+    lambda[s] ~ dnorm(mu_lambda, 1/sigma_lambda^2)T(0.01, 10)
+  }
+
+  # Trial-by-trial updates
+  for (s in 1:N) {
+    # Initialize expected values
+    for (d in 1:4) {
+      ev[s, 1, d] <- 0
+    }
+
+    for (t in 1:Tsubj[s]) {
+      # Softmax choice probabilities
+      for (d in 1:4) {
+        v[s, t, d] <- cons[s] * ev[s, t, d]
+        exp_v[s, t, d] <- exp(v[s, t, d])
+      }
+
+      for (d in 1:4) {
+        p[s, t, d] <- exp_v[s, t, d] / sum(exp_v[s, t, ])
+      }
+
+      # Observed choice
+      choice[s, t] ~ dcat(p[s, t, ])
+
+      # Compute utility
+      abs_outcome[s, t] <- abs(outcome[s, t]) + 0.001
+
+      util[s, t] <- ifelse(outcome[s, t] >= 0,
+                           pow(abs_outcome[s, t], alpha[s]),
+                           -lambda[s] * pow(abs_outcome[s, t], alpha[s]))
+
+      # Update chosen deck
+      for (d in 1:4) {
+        ev[s, t+1, d] <- equals(d, choice[s, t]) * (ev[s, t, d] + A[s] * (util[s, t] - ev[s, t, d])) +
+                         (1 - equals(d, choice[s, t])) * ev[s, t, d]
+      }
+    }
+  }
+}

@@ -1,0 +1,72 @@
+model {
+  # PVL-Delta Model for Iowa Gambling Task
+  # Prospect-Valence Learning with Delta-Rule updating
+  # Parameters: A (learning rate), alpha (outcome sensitivity),
+  #             cons (choice consistency), lambda (loss aversion)
+
+  # Hyperpriors (group-level distributions)
+  mu_A ~ dunif(0, 1)
+  mu_alpha ~ dunif(0, 2)
+  mu_cons ~ dunif(0, 5)
+  mu_lambda ~ dunif(0, 10)
+
+  sigma_A ~ dunif(0, 1)
+  sigma_alpha ~ dunif(0, 2)
+  sigma_cons ~ dunif(0, 5)
+  sigma_lambda ~ dunif(0, 10)
+
+  # Subject-level parameters
+  for (s in 1:N) {
+    # Raw parameters (unbounded)
+    A_raw[s] ~ dnorm(mu_A, pow(sigma_A, -2))
+    alpha_raw[s] ~ dnorm(mu_alpha, pow(sigma_alpha, -2))
+    cons_raw[s] ~ dnorm(mu_cons, pow(sigma_cons, -2))
+    lambda_raw[s] ~ dnorm(mu_lambda, pow(sigma_lambda, -2))
+
+    # Constrained parameters
+    A[s] <- phi(A_raw[s])           # learning rate: [0, 1]
+    alpha[s] <- exp(alpha_raw[s])   # outcome sensitivity: (0, inf), typically (0, 2]
+    cons[s] <- exp(cons_raw[s])     # choice consistency: (0, inf), typically (0, 5]
+    lambda[s] <- exp(lambda_raw[s]) # loss aversion: (0, inf), typically (0, 10]
+  }
+
+  # Trial-by-trial updates
+  for (s in 1:N) {
+    # Initialize expected values
+    for (d in 1:4) {
+      ev[s, 1, d] <- 0
+    }
+
+    for (t in 1:Tsubj[s]) {
+      # Sensitivity parameter (compute once per trial)
+      sens[s, t] <- pow(3, cons[s]) - 1
+
+      # Compute choice probabilities with softmax
+      for (d in 1:4) {
+        # Exp-utility for each deck
+        exp_util[s, t, d] <- exp(sens[s, t] * ev[s, t, d])
+      }
+
+      # Softmax probabilities
+      for (d in 1:4) {
+        p_choice[s, t, d] <- exp_util[s, t, d] / sum(exp_util[s, t, ])
+      }
+
+      # Observed choice likelihood
+      choice[s, t] ~ dcat(p_choice[s, t, ])
+
+      # Utility of observed outcome
+      # Add small constant to avoid pow(0, alpha) issues
+      util[s, t] <- ifelse(outcome[s, t] >= 0,
+                           pow(abs(outcome[s, t]) + 0.001, alpha[s]),
+                           -lambda[s] * pow(abs(outcome[s, t]) + 0.001, alpha[s]))
+
+      # Update expected value for chosen deck (delta rule)
+      for (d in 1:4) {
+        ev[s, t+1, d] <- ifelse(d == choice[s, t],
+                                ev[s, t, d] + A[s] * (util[s, t] - ev[s, t, d]),
+                                ev[s, t, d])
+      }
+    }
+  }
+}
