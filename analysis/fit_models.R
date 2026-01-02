@@ -51,23 +51,40 @@ if (config$parallel) {
   }
 }
 
-cat("=== IGT Model Fitting Pipeline ===\n\n")
+cat("=== IGT Model Fitting Pipeline ===\n")
+cat(sprintf("Start time: %s\n\n", Sys.time()))
 
-# Step 1: Load and validate data
-cat("Step 1: Loading and validating data...\n")
-all_data <- load_all_igt_data()
-validate_igt_data(all_data)
+# Step 1: Load and validate data (with caching)
+data_cache_file <- "analysis/outputs/cached_data.rds"
 
-# Prepare JAGS data
-if (config$fit_all_studies) {
-  cat("\nPreparing combined dataset for model fitting...\n")
-  jags_data <- prepare_jags_data(all_data)
+if (file.exists(data_cache_file)) {
+  cat("Step 1: Loading cached data...\n")
+  cached <- readRDS(data_cache_file)
+  all_data <- cached$all_data
+  jags_data <- cached$jags_data
+  cat(sprintf("  ✓ Loaded from cache: %d subjects, %d trials\n",
+              jags_data$N, sum(jags_data$Tsubj)))
 } else {
-  cat("\nPreparing single study (Ahn2014_HC) for testing...\n")
-  jags_data <- prepare_jags_data(all_data, study_filter = "Ahn2014_HC")
-}
+  cat("Step 1: Loading and validating data...\n")
+  all_data <- load_all_igt_data()
+  validate_igt_data(all_data)
 
-check_jags_data(jags_data)
+  # Prepare JAGS data
+  if (config$fit_all_studies) {
+    cat("\nPreparing combined dataset for model fitting...\n")
+    jags_data <- prepare_jags_data(all_data)
+  } else {
+    cat("\nPreparing single study (Ahn2014_HC) for testing...\n")
+    jags_data <- prepare_jags_data(all_data, study_filter = "Ahn2014_HC")
+  }
+
+  check_jags_data(jags_data)
+
+  # Cache the data for future runs
+  cat("\nCaching data for future runs...\n")
+  saveRDS(list(all_data = all_data, jags_data = jags_data), file = data_cache_file)
+  cat(sprintf("  ✓ Saved to: %s\n", data_cache_file))
+}
 
 # Step 2: Fit models
 cat("\n=== Step 2: Fitting Models ===\n")
@@ -75,7 +92,20 @@ cat("\n=== Step 2: Fitting Models ===\n")
 fit_results <- list()
 
 for (model_name in config$models) {
-  cat(sprintf("\n--- Fitting %s model ---\n", toupper(model_name)))
+  cat(sprintf("\n=================================================\n"))
+  cat(sprintf("MODEL: %s\n", toupper(model_name)))
+  cat(sprintf("=================================================\n"))
+  cat(sprintf("Start time: %s\n\n", Sys.time()))
+
+  # Check if already fitted
+  output_file <- sprintf("analysis/outputs/%s_fit.rds", model_name)
+  if (file.exists(output_file)) {
+    cat(sprintf("  ⚠ Model already fitted. Loading existing results from:\n"))
+    cat(sprintf("    %s\n", output_file))
+    cat(sprintf("  To refit, delete this file and re-run the pipeline.\n\n"))
+    fit_results[[model_name]] <- readRDS(output_file)
+    next
+  }
 
   # Model file path (use v2 versions for numerical stability)
   model_file <- sprintf("analysis/models/%s_v2.jags", model_name)
@@ -85,9 +115,11 @@ for (model_name in config$models) {
     next
   }
 
+  cat(sprintf("Step 1/4: Preparing model-specific data...\n"))
   # Prepare model-specific data
   model_data <- prepare_jags_data_for_model(all_data, model_name,
                                             study_filter = if(!config$fit_all_studies) "Ahn2014_HC" else NULL)
+  cat(sprintf("  ✓ Data prepared for %s model\n\n", model_name))
 
   # Parameters to monitor
   if (model_name == "pvl_delta") {
@@ -106,10 +138,14 @@ for (model_name in config$models) {
 
   if (config$parallel) {
     # Parallel execution: run each chain as a separate process
-    cat(sprintf("Running %d chains in parallel on %d cores...\n",
-                config$n_chains, config$n_cores))
+    cat(sprintf("Step 2/4: Initializing parallel execution...\n"))
+    cat(sprintf("  • Chains: %d\n", config$n_chains))
+    cat(sprintf("  • Cores: %d\n", config$n_cores))
+    cat(sprintf("  • Adaptation: %d iterations\n", config$n_adapt))
+    cat(sprintf("  • Burn-in: %d iterations\n", config$n_burnin))
+    cat(sprintf("  • Sampling: %d iterations\n\n", config$n_iter))
 
-    # Function to fit a single chain
+    # Function to fit a single chain with progress logging
     fit_chain <- function(chain_id) {
       # Initialize model for this chain
       chain_model <- jags.model(
@@ -134,6 +170,9 @@ for (model_name in config$models) {
       return(chain_samples)
     }
 
+    cat("Step 3/4: Running MCMC chains in parallel...\n")
+    chain_start <- Sys.time()
+
     # Run chains in parallel
     cl <- parallel::makeCluster(config$n_cores)
     on.exit(parallel::stopCluster(cl))
@@ -143,19 +182,29 @@ for (model_name in config$models) {
                            envir = environment())
 
     # Load rjags on each worker
+    cat("  • Loading JAGS on worker processes...\n")
     parallel::clusterEvalQ(cl, {
       library(rjags)
       library(coda)
     })
 
     # Run chains
+    cat(sprintf("  • Sampling started at: %s\n", Sys.time()))
+    cat("  • This may take 15-30 minutes depending on model complexity...\n")
+    flush.console()  # Force output to appear immediately
+
     chain_list <- parallel::parLapply(cl, 1:config$n_chains, fit_chain)
 
+    chain_end <- Sys.time()
+    chain_duration <- as.numeric(difftime(chain_end, chain_start, units = "mins"))
+
+    cat(sprintf("  ✓ Sampling complete! Duration: %.1f minutes\n\n", chain_duration))
+
     # Combine chains into mcmc.list
+    cat("Step 4/4: Combining chains and saving results...\n")
     samples <- as.mcmc.list(lapply(chain_list, function(x) x[[1]]))
 
     parallel::stopCluster(cl)
-    cat("Parallel sampling complete.\n")
 
   } else {
     # Sequential execution: original approach
@@ -187,13 +236,35 @@ for (model_name in config$models) {
     samples = samples,
     model_file = model_file,
     data = model_data,
-    config = config
+    config = config,
+    timestamp = Sys.time()
   )
 
   # Save individual model results
-  output_file <- sprintf("analysis/outputs/%s_fit.rds", model_name)
+  cat(sprintf("  • Saving results to: %s\n", output_file))
   saveRDS(fit_results[[model_name]], file = output_file)
-  cat(sprintf("Saved results to: %s\n", output_file))
+  file_size_mb <- file.size(output_file) / 1024^2
+  cat(sprintf("  ✓ Saved successfully (%.1f MB)\n", file_size_mb))
+
+  # Quick convergence check
+  cat("\n  Quick convergence check (group-level parameters):\n")
+  gelman_result <- try(gelman.diag(samples), silent = TRUE)
+  if (!inherits(gelman_result, "try-error")) {
+    mu_params <- grep("^mu_", rownames(gelman_result$psrf), value = TRUE)
+    if (length(mu_params) > 0) {
+      rhat_vals <- gelman_result$psrf[mu_params, "Point est."]
+      max_rhat <- max(rhat_vals, na.rm = TRUE)
+      if (max_rhat < 1.1) {
+        cat(sprintf("  ✓ Convergence looks good! Max R-hat = %.3f\n", max_rhat))
+      } else {
+        cat(sprintf("  ⚠ Warning: Max R-hat = %.3f (target < 1.1)\n", max_rhat))
+      }
+    }
+  }
+
+  model_end_time <- Sys.time()
+  cat(sprintf("\n  Model complete at: %s\n", model_end_time))
+  cat(sprintf("=================================================\n"))
 }
 
 # Step 3: Quick summary
