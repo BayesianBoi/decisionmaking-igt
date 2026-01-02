@@ -1,20 +1,40 @@
 model {
   # ORL Model for Iowa Gambling Task
-  # Outcome Representation Learning
-  # Fixed version with better numerical stability
+  # Outcome Representation Learning (Haines et al., 2018; Worthy et al., 2013)
+  #
+  # Key features:
+  # - Separate learning rates for rewards (Arew) and punishments (Apun)
+  # - Expected value (EV) tracks outcome magnitudes
+  # - Expected frequency (EF) tracks outcome valence (win/loss)
+  # - Fictive updating: Unchosen decks learn opposite outcome frequencies
+  #   Rationale: If chosen deck wins (+1), unchosen decks learn they would have lost
+  #   Implementation: Distribute opposite frequency equally across 3 unchosen decks (-1/3)
+  # - Perseverance: Tendency to repeat recent choices (decay parameter K)
+  # - Choice = softmax(EV + betaF*EF + betaP*perseverance)
+  #
+  # This version uses improved numerical stability with bounded parameters
 
-  # Hyperpriors
+  # Hyperpriors (weakly informative based on IGT literature)
+  # Arew/Apun (learning rates): Often similar, both centered at 0.5
   mu_Arew ~ dbeta(2, 2)
   mu_Apun ~ dbeta(2, 2)
-  mu_K ~ dnorm(1, 1)T(0,)
-  mu_betaF ~ dnorm(0, 0.5)
-  mu_betaP ~ dnorm(0, 0.5)
 
+  # K (perseverance decay): Typically 0.5-2.0, allow [0,10]
+  # Using precision=2 -> SD=0.71
+  mu_K ~ dnorm(1, 2)T(0, 10)
+
+  # betaF/betaP (frequency and perseverance weights): Can be positive or negative
+  # Centered at 0, allowing typical range of -3 to +3
+  # Using precision=1 -> SD=1
+  mu_betaF ~ dnorm(0, 1)T(-10, 10)
+  mu_betaP ~ dnorm(0, 1)T(-10, 10)
+
+  # Group-level variability
   sigma_Arew ~ dunif(0, 0.5)
   sigma_Apun ~ dunif(0, 0.5)
-  sigma_K ~ dunif(0, 2)
-  sigma_betaF ~ dunif(0, 3)
-  sigma_betaP ~ dunif(0, 3)
+  sigma_K ~ dunif(0, 1.5)
+  sigma_betaF ~ dunif(0, 2)
+  sigma_betaP ~ dunif(0, 2)
 
   # Subject-level parameters with truncation
   for (s in 1:N) {

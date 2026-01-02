@@ -1,26 +1,53 @@
 model {
   # VSE Model for Iowa Gambling Task
-  # Value + Sequential Exploration (PVL-Delta with perseverance)
-  # Fixed version with better numerical stability
+  # Value + Sequential Exploration (Worthy et al., 2013)
+  #
+  # Extends PVL-Delta with sequential exploration (perseverance) mechanisms:
+  # - A, alpha, cons, lambda: Same as PVL-Delta
+  # - epP: Perseverance boost after positive outcomes [0, 5]
+  # - epN: Perseverance boost after negative outcomes [0, 5]
+  # - K: Perseverance decay rate [0, 1] - higher K = faster decay
+  # - w: Weight between value and perseverance [0, 1]
+  #   w=1: Pure value-based learning (reduces to PVL-Delta)
+  #   w=0: Pure perseverance-based choice
+  #
+  # Perseverance updating:
+  # - pers[t+1] = pers[t] * K + boost (chosen deck)
+  # - pers[t+1] = pers[t] * K (unchosen decks)
+  # - boost = epP if outcome >= 0, else epN
+  #
+  # Choice: softmax(cons * [EV*w + perseverance*(1-w)])
+  #
+  # This v2 version uses improved numerical stability with bounded parameters
 
-  # Hyperpriors
+  # Hyperpriors (weakly informative based on IGT literature)
+  # Base PVL-Delta parameters (same as pvl_delta_v2)
   mu_A ~ dbeta(2, 2)
-  mu_alpha ~ dnorm(0.5, 1)T(0,)
-  mu_cons ~ dnorm(1, 1)T(0,)
-  mu_lambda ~ dnorm(1, 1)T(0,)
-  mu_epP ~ dnorm(0.5, 1)T(0,)
-  mu_epN ~ dnorm(0.5, 1)T(0,)
+  mu_alpha ~ dnorm(0.7, 4)T(0, 2)
+  mu_cons ~ dnorm(1, 2)T(0, 5)
+  mu_lambda ~ dnorm(2, 1)T(0, 10)
+
+  # VSE-specific parameters
+  # epP/epN (perseverance boosts): Typically small values 0-2
+  # Using precision=4 -> SD=0.5
+  mu_epP ~ dnorm(0.5, 4)T(0, 5)
+  mu_epN ~ dnorm(0.5, 4)T(0, 5)
+
+  # K (decay rate): Higher values mean faster decay, typically 0.3-0.7
   mu_K ~ dbeta(2, 2)
+
+  # w (weight): Balance between value and perseverance, typically 0.5-0.8
   mu_w ~ dbeta(2, 2)
 
+  # Group-level variability
   sigma_A ~ dunif(0, 0.5)
-  sigma_alpha ~ dunif(0, 1)
-  sigma_cons ~ dunif(0, 2)
-  sigma_lambda ~ dunif(0, 3)
-  sigma_epP ~ dunif(0, 1)
-  sigma_epN ~ dunif(0, 1)
-  sigma_K ~ dunif(0, 0.5)
-  sigma_w ~ dunif(0, 0.5)
+  sigma_alpha ~ dunif(0, 0.5)
+  sigma_cons ~ dunif(0, 1.5)
+  sigma_lambda ~ dunif(0, 2)
+  sigma_epP ~ dunif(0, 0.8)
+  sigma_epN ~ dunif(0, 0.8)
+  sigma_K ~ dunif(0, 0.3)
+  sigma_w ~ dunif(0, 0.3)
 
   # Subject-level parameters with truncation
   for (s in 1:N) {

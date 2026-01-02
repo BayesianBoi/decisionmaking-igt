@@ -25,9 +25,10 @@ config <- list(
   n_iter = 5000,
   thin = 1,
   models = c("pvl_delta", "vse", "orl"),
-  fit_all_studies = TRUE,  # If FALSE, fits only first study for testing
-  parallel = TRUE,         # Run chains in parallel for faster execution
-  n_cores = NULL           # NULL = auto-detect and use all available cores
+  fit_all_studies = TRUE,
+  parallel = TRUE,
+  n_cores = NULL,
+  parallel_models = TRUE   # Fit different models in parallel
 )
 
 # Setup parallel execution if requested

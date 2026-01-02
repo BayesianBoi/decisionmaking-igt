@@ -143,9 +143,9 @@ simulate_data_pvl_delta <- function(params, deck_outcomes, n_trials) {
     ev <- rep(0, 4)
 
     for (t in 1:n_trials) {
-      # Choice probabilities
-      sens <- 3^params$cons[s] - 1
-      exp_util <- exp(sens * ev)
+      # Choice probabilities (matching JAGS model formulation)
+      v <- params$cons[s] * ev
+      exp_util <- exp(v)
       p_choice <- exp_util / sum(exp_util)
 
       # Sample choice
@@ -167,6 +167,125 @@ simulate_data_pvl_delta <- function(params, deck_outcomes, n_trials) {
 
       # Update EV
       ev[choice] <- ev[choice] + params$A[s] * (util - ev[choice])
+    }
+  }
+
+  return(list(choices = choices, outcomes = outcomes))
+}
+
+#' Simulate data from VSE model
+#' @param params Parameter list
+#' @param deck_outcomes IGT deck structure
+#' @param n_trials Number of trials
+#' @return List with simulated choices and outcomes
+simulate_data_vse <- function(params, deck_outcomes, n_trials) {
+  n_subj <- length(params$A)
+
+  choices <- matrix(NA, nrow = n_subj, ncol = n_trials)
+  outcomes <- matrix(NA, nrow = n_subj, ncol = n_trials)
+
+  for (s in 1:n_subj) {
+    ev <- rep(0, 4)
+    pers <- rep(0, 4)
+
+    for (t in 1:n_trials) {
+      # Combined value (matching JAGS formulation)
+      combined <- ev * params$w[s] + pers * (1 - params$w[s])
+      v <- params$cons[s] * combined
+      exp_util <- exp(v)
+      p_choice <- exp_util / sum(exp_util)
+
+      # Sample choice
+      choice <- sample(1:4, size = 1, prob = p_choice)
+      choices[s, t] <- choice
+
+      # Get outcome
+      gain <- deck_outcomes[t, 1, choice]
+      loss <- deck_outcomes[t, 2, choice]
+      outcome <- (gain + loss) / 100  # Scale
+      outcomes[s, t] <- outcome
+
+      # Compute utility
+      if (outcome >= 0) {
+        util <- outcome^params$alpha[s]
+      } else {
+        util <- -params$lambda[s] * abs(outcome)^params$alpha[s]
+      }
+
+      # Update EV (chosen deck only)
+      ev[choice] <- ev[choice] + params$A[s] * (util - ev[choice])
+
+      # Update perseverance (all decks)
+      pers_boost <- ifelse(outcome >= 0, params$epP[s], params$epN[s])
+      pers[choice] <- pers[choice] * params$K[s] + pers_boost
+      for (d in setdiff(1:4, choice)) {
+        pers[d] <- pers[d] * params$K[s]
+      }
+    }
+  }
+
+  return(list(choices = choices, outcomes = outcomes))
+}
+
+#' Simulate data from ORL model
+#' @param params Parameter list
+#' @param deck_outcomes IGT deck structure
+#' @param n_trials Number of trials
+#' @return List with simulated choices and outcomes
+simulate_data_orl <- function(params, deck_outcomes, n_trials) {
+  n_subj <- length(params$Arew)
+
+  choices <- matrix(NA, nrow = n_subj, ncol = n_trials)
+  outcomes <- matrix(NA, nrow = n_subj, ncol = n_trials)
+
+  for (s in 1:n_subj) {
+    ev <- rep(0, 4)
+    ef <- rep(0, 4)
+    pers <- rep(0, 4)
+
+    for (t in 1:n_trials) {
+      # Combined utility (matching JAGS formulation)
+      util_combined <- ev + ef * params$betaF[s] + pers * params$betaP[s]
+      exp_util <- exp(util_combined)
+      p_choice <- exp_util / sum(exp_util)
+
+      # Sample choice
+      choice <- sample(1:4, size = 1, prob = p_choice)
+      choices[s, t] <- choice
+
+      # Get outcome
+      gain <- deck_outcomes[t, 1, choice]
+      loss <- deck_outcomes[t, 2, choice]
+      outcome <- (gain + loss) / 100  # Scale
+      outcomes[s, t] <- outcome
+
+      # Sign of outcome
+      sign_out <- ifelse(outcome > 0, 1, ifelse(outcome < 0, -1, 0))
+
+      # Prediction errors
+      PE_val <- outcome - ev[choice]
+      PE_freq <- sign_out - ef[choice]
+
+      # Learning rates
+      lr_val <- ifelse(outcome >= 0, params$Arew[s], params$Apun[s])
+      lr_freq <- ifelse(outcome >= 0, params$Arew[s], params$Apun[s])
+      lr_fic <- ifelse(outcome >= 0, params$Apun[s], params$Arew[s])
+
+      # Update chosen deck
+      ev[choice] <- ev[choice] + lr_val * PE_val
+      ef[choice] <- ef[choice] + lr_freq * PE_freq
+
+      # Update unchosen decks (fictive updating)
+      for (d in setdiff(1:4, choice)) {
+        PE_freq_fic <- -sign_out / 3 - ef[d]
+        ef[d] <- ef[d] + lr_fic * PE_freq_fic
+      }
+
+      # Update perseverance (matching JAGS formulation)
+      pers[choice] <- 1 / (1 + params$K[s])
+      for (d in setdiff(1:4, choice)) {
+        pers[d] <- pers[d] / (1 + params$K[s])
+      }
     }
   }
 
@@ -196,6 +315,10 @@ run_parameter_recovery <- function(model_name = "pvl_delta",
 
   if (model_name == "pvl_delta") {
     sim_data <- simulate_data_pvl_delta(true_params, deck_outcomes, n_trials)
+  } else if (model_name == "vse") {
+    sim_data <- simulate_data_vse(true_params, deck_outcomes, n_trials)
+  } else if (model_name == "orl") {
+    sim_data <- simulate_data_orl(true_params, deck_outcomes, n_trials)
   } else {
     warning(sprintf("Simulation not implemented for %s", model_name))
     return(NULL)
@@ -213,7 +336,7 @@ run_parameter_recovery <- function(model_name = "pvl_delta",
 
   # Step 4: Fit model to simulated data
   cat("Step 4: Fitting model to recover parameters...\n")
-  model_file <- sprintf("analysis/models/%s.jags", model_name)
+  model_file <- sprintf("analysis/models/%s_v2.jags", model_name)
 
   jags_model <- jags.model(
     file = model_file,
@@ -228,6 +351,10 @@ run_parameter_recovery <- function(model_name = "pvl_delta",
   # Monitor parameters
   if (model_name == "pvl_delta") {
     params_to_monitor <- c("A", "alpha", "cons", "lambda")
+  } else if (model_name == "vse") {
+    params_to_monitor <- c("A", "alpha", "cons", "lambda", "epP", "epN", "K", "w")
+  } else if (model_name == "orl") {
+    params_to_monitor <- c("Arew", "Apun", "K", "betaF", "betaP")
   }
 
   samples <- coda.samples(

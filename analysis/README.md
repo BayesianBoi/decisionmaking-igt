@@ -1,102 +1,104 @@
-# Iowa Gambling Task Analysis Pipeline
+# Analysis Pipeline Documentation
 
-This directory contains a reproducible R + JAGS analysis pipeline for fitting decision-making models to Iowa Gambling Task (IGT) data.
+This directory contains the complete fitting and validation pipeline for IGT models.
 
-## Quick Start
+## Core Scripts
 
-**Test the pipeline (2 minutes):**
+**fit_models.R**
+Main pipeline that fits all three models sequentially. Includes data caching and automatic resume capability. Models are fit with 4 chains, 2000 adaptation iterations, 2000 burn-in, and 5000 sampling iterations.
+
+**fit_single_model.R**
+Fit individual models. Useful for parallel execution across separate processes or debugging specific models.
+
+Usage:
 ```bash
-Rscript analysis/quick_test.R
+Rscript analysis/fit_single_model.R pvl_delta
+Rscript analysis/fit_single_model.R vse
+Rscript analysis/fit_single_model.R orl
 ```
 
-**Run full pipeline (3-5 hours on cloud):**
-```bash
-Rscript analysis/fit_models.R
-```
+**quick_test.R**
+Runs a quick validation using Ahn2014_HC data (48 subjects). Verifies that models compile and basic convergence is achieved. Takes about 2 minutes.
 
-See `CLOUD_SETUP.md` for running on cloud compute.
+## JAGS Models
 
-## Overview
+Located in `models/` directory. Each model has theoretical documentation in its header.
 
-This pipeline fits three reinforcement learning models (PVL-Delta, VSE, and ORL) to IGT data from three published studies. The models are implemented in JAGS with hierarchical Bayesian estimation.
+**pvl_delta_v2.jags**
+- 4 parameters: A (learning rate), alpha (outcome sensitivity), cons (consistency), lambda (loss aversion)
+- Uses delta-rule updating: EV[t+1] = EV[t] + A * (u[t] - EV[t])
+- Utility function: u(x) = x^alpha for gains, -lambda * |x|^alpha for losses
 
-## Data Sources
+**vse_v2.jags**
+- 8 parameters: PVL-Delta parameters plus epP, epN (perseverance boosts), K (decay), w (weight)
+- Combines expected value learning with sequential exploration tendencies
+- Choice based on weighted average: w * EV + (1-w) * perseverance
 
-### 1. Ahn et al. (2014)
-- **Location**: `data/raw/Ahn_2014/`
-- **Files**:
-  - `IGTdata_HC.txt` - Healthy controls
-  - `IGTdata_Amph.txt` - Amphetamine group
-  - `IGTdata_Hero.txt` - Heroin group
-- **Format**: Tab-delimited with columns: `trial`, `deck`, `gain`, `loss`, `subjID`
-- **Structure**: Long format with one row per trial, deck choices 1-4
+**orl_v2.jags**
+- 5 parameters: Arew, Apun (learning rates), K (decay), betaF, betaP (weights)
+- Tracks expected value (EV) and expected frequency (EF) separately
+- Includes fictive updating for unchosen options
 
-### 2. Fridberg et al. (2010)
-- **Location**: `data/raw/Fridberg_2010/`
-- **Files**:
-  - `IGTdata_HC.txt` - Healthy controls
-  - `IGTdata_Cbis.txt` - Cannabis users
-- **Format**: Tab-delimited with columns: `trial`, `deck`, `deckCopy`, `gain`, `loss`, `subjID`
-- **Structure**: Long format with one row per trial, deck choices 1-4
+## Utility Functions
 
-### 3. Steingroever et al. (2014)
-- **Location**: `data/raw/Steingroever_2014/`
-- **Files**: Separate files for choice, wins (wi), losses (lo), and subject indices
-  - `choice_95.txt/csv`, `choice_100.txt/csv`, `choice_150.txt/csv`
-  - `wi_95.txt/csv`, `wi_100.txt/csv`, `wi_150.txt/csv`
-  - `lo_95.txt/csv`, `lo_100.txt/csv`, `lo_150.txt/csv`
-  - `index_95.txt/csv`, `index_100.txt/csv`, `index_150.txt/csv`
-- **Format**: Wide format with subjects as rows and trials as columns
-- **Structure**: Three datasets with 95, 100, and 150 trials per subject
+**load_data.R**
+Harmonizes data from three sources into consistent format. Creates unique subject IDs across studies and validates choice ranges.
 
-## Models
+**prepare_jags_data.R**
+Converts harmonized data into JAGS-compatible format with proper matrix dimensions and variable-length trial handling.
 
-### PVL-Delta Model
-- **Parameters**: A (learning rate), alpha (outcome sensitivity), cons (choice consistency), lambda (loss aversion)
-- **Description**: Prospect-valence learning with delta-rule updating and power utility function
+**diagnostics.R**
+Computes convergence diagnostics (R-hat, ESS), generates trace plots, and creates diagnostic reports for all fitted models.
 
-### VSE Model (Value + Sequential Exploration)
-- **Parameters**: A, alpha, cons, lambda, epP (positive perseverance), epN (negative perseverance), K (perseverance decay), w (weight)
-- **Description**: PVL-Delta extended with sequential exploration (perseverance) tendency
+**ppc.R**
+Posterior predictive checks. Simulates data from fitted models and compares to observed choice proportions.
 
-### ORL Model (Outcome Representation Learning)
-- **Parameters**: Arew (reward learning rate), Apun (punishment learning rate), K (perseverance decay), betaF (frequency weight), betaP (perseverance weight)
-- **Description**: Separate learning for outcome valence and frequency, with fictive updating
+**parameter_recovery.R**
+Tests parameter identifiability by fitting models to simulated data with known parameters.
 
-## Directory Structure
+**model_comparison.R**
+Computes model comparison metrics (DIC, WAIC) for selecting best-fitting model.
 
-```
-analysis/
-├── README.md                  # This file
-├── fit_models.R              # Main fitting pipeline
-├── models/                   # JAGS model files
-│   ├── pvl_delta.jags
-│   ├── vse.jags
-│   └── orl.jags
-├── utils/                    # Helper functions
-│   ├── load_data.R          # Data loading and harmonization
-│   ├── prepare_jags_data.R  # JAGS data preparation
-│   ├── diagnostics.R        # R-hat, ESS, trace plots
-│   ├── ppc.R                # Posterior predictive checks
-│   └── model_comparison.R   # DIC/WAIC/LOO comparison
-└── outputs/                 # Results (not tracked in git)
-    ├── pvl_delta_fit.rds
-    ├── vse_fit.rds
-    ├── orl_fit.rds
-    ├── diagnostics.rds
-    ├── ppc_results.rds
-    └── model_comparison.md
-```
+**visualization.R**
+Creates publication-quality figures including trace plots and posterior densities.
 
-## Requirements
+**reporting.R**
+Generates APA-formatted tables and result summaries for manuscripts.
 
-- R >= 4.0
-- rjags package
-- dplyr, tidyr for data manipulation
-- coda for MCMC diagnostics
+## Workflow
 
-## Notes
+1. Data loading and validation
+2. Model fitting (sequential or parallel)
+3. Convergence diagnostics
+4. Posterior predictive checks
+5. Parameter recovery (optional)
+6. Model comparison
+7. Publication outputs
 
-- All models use hierarchical Bayesian estimation with group-level and subject-level parameters
-- Default MCMC settings: 4 chains, 2000 iterations burn-in, 5000 sampling iterations
-- Data preprocessing maintains consistency with original publications
+## Outputs
+
+Results are saved in `outputs/` directory:
+- `cached_data.rds` - Preprocessed data
+- `pvl_delta_fit.rds`, `vse_fit.rds`, `orl_fit.rds` - Fitted models
+- `*_trace_plots.pdf` - MCMC diagnostics
+- `all_diagnostics.rds` - Convergence metrics
+- `ppc_results.rds` - Posterior predictive checks
+
+## Configuration
+
+Default MCMC settings in `fit_models.R`:
+- 4 chains
+- 2000 adaptation iterations
+- 2000 burn-in iterations
+- 5000 sampling iterations
+- Parallel execution enabled
+
+Adjust these based on your computational resources and convergence requirements.
+
+## Troubleshooting
+
+See `TROUBLESHOOTING.md` for common issues and solutions.
+
+For parallel fitting on high-core systems, see `PARALLEL_FITTING.md`.
+
+For preparing publication outputs, see `PAPER_WORKFLOW.md`.

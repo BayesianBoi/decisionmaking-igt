@@ -1,17 +1,41 @@
 model {
   # PVL-Delta Model for Iowa Gambling Task
-  # Simplified version with better numerical stability
+  # Prospect-Valence Learning with Delta-rule updating (Ahn et al., 2008)
+  #
+  # Key features:
+  # - A: Learning rate [0, 1] - controls speed of expected value updating
+  # - alpha: Outcome sensitivity [0, 2] - power function exponent for utility
+  # - cons: Choice consistency [0, 5] - inverse temperature for softmax
+  # - lambda: Loss aversion [0, 10] - multiplier for losses relative to gains
+  #
+  # Learning rule: EV[t+1] = EV[t] + A * (utility[t] - EV[t])
+  # Utility: u(x) = x^alpha if x >= 0, else -lambda * |x|^alpha
+  # Choice: softmax with temperature parameter cons
+  #
+  # This v2 version uses improved numerical stability with bounded parameters
 
-  # Hyperpriors
+  # Hyperpriors (weakly informative based on IGT literature)
+  # A (learning rate): Centered at 0.5, allowing full range [0,1]
   mu_A ~ dbeta(2, 2)
-  mu_alpha ~ dnorm(0.5, 1)T(0,)
-  mu_cons ~ dnorm(1, 1)T(0,)
-  mu_lambda ~ dnorm(1, 1)T(0,)
 
+  # alpha (outcome sensitivity): Typically 0.5-1.0 in IGT studies, allow [0,2]
+  # dnorm(mean, precision) where precision = 1/variance
+  # Using precision=4 -> SD=0.5, covers typical range while allowing extremes
+  mu_alpha ~ dnorm(0.7, 4)T(0, 2)
+
+  # cons (choice consistency): Typically 0.5-2.0, allow up to 5
+  # Using precision=2 -> SD=0.71
+  mu_cons ~ dnorm(1, 2)T(0, 5)
+
+  # lambda (loss aversion): Typically 1.0-3.0, allow [0,10]
+  # Using precision=1 -> SD=1
+  mu_lambda ~ dnorm(2, 1)T(0, 10)
+
+  # Group-level variability (half-Cauchy approximated with uniform)
   sigma_A ~ dunif(0, 0.5)
-  sigma_alpha ~ dunif(0, 1)
-  sigma_cons ~ dunif(0, 2)
-  sigma_lambda ~ dunif(0, 3)
+  sigma_alpha ~ dunif(0, 0.5)
+  sigma_cons ~ dunif(0, 1.5)
+  sigma_lambda ~ dunif(0, 2)
 
   # Subject-level parameters
   for (s in 1:N) {

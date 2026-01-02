@@ -1,166 +1,127 @@
-# Iowa Gambling Task - Hierarchical Bayesian Models
+# Hierarchical Bayesian Models for Iowa Gambling Task
 
-Reproducible R + JAGS analysis pipeline for fitting decision-making models to Iowa Gambling Task (IGT) data.
-
-## Overview
-
-This repository implements three hierarchical Bayesian models for IGT choice data:
-
-- **PVL-Delta**: Prospect-Valence Learning with delta-rule updating (4 parameters)
-- **VSE**: Value + Sequential Exploration with perseverance (8 parameters)
-- **ORL**: Outcome Representation Learning with fictive updating (5 parameters)
-
-All models are implemented in JAGS with numerically stable priors and validated on 173 subjects from 3 published studies.
-
-## Quick Start
-
-### Local Testing (2 minutes)
-
-```bash
-cd decision_making
-Rscript analysis/quick_test.R
-```
-
-### Cloud Deployment (3-5 hours)
-
-See [`GITHUB_DEPLOYMENT.md`](GITHUB_DEPLOYMENT.md) for GitHub setup, then follow [`analysis/CLOUD_SETUP.md`](analysis/CLOUD_SETUP.md).
-
-## Repository Structure
-
-```
-igt-decision-models/
-├── analysis/              # Main analysis pipeline
-│   ├── fit_models.R      # Run all models
-│   ├── quick_test.R      # Quick validation
-│   ├── models/           # JAGS model definitions
-│   │   ├── pvl_delta_v2.jags
-│   │   ├── vse_v2.jags
-│   │   └── orl_v2.jags
-│   └── utils/            # Helper functions
-├── data/                 # Raw IGT data
-│   └── raw/
-│       ├── Ahn_2014/
-│       ├── Fridberg_2010/
-│       └── Steingroever_2014/
-└── docs/                 # Reference papers
-```
-
-## Data
-
-**173 subjects, 81,831 trials** from:
-
-- Ahn et al. (2014): 3 groups (HC, Amphetamine, Heroin)
-- Fridberg et al. (2010): 2 groups (HC, Cannabis)
-- Steingroever et al. (2014): 3 datasets (95, 100, 150 trials)
+This repository provides a complete pipeline for fitting reinforcement learning models to Iowa Gambling Task data using hierarchical Bayesian estimation in JAGS.
 
 ## Models
 
-### PVL-Delta
-- **A**: Learning rate [0, 1]
-- **alpha**: Outcome sensitivity [0, 2]
-- **cons**: Choice consistency [0, 5]
-- **lambda**: Loss aversion [0, 10]
+Three models are implemented, each capturing different aspects of decision-making:
 
-### VSE (extends PVL-Delta)
-- **epP/epN**: Perseverance after wins/losses
-- **K**: Perseverance decay
-- **w**: Weight between value and perseverance
+**PVL-Delta** (4 parameters)
+Prospect-valence learning with delta-rule updating. Participants learn expected values through prediction errors, with utility shaped by outcome sensitivity and loss aversion.
 
-### ORL
-- **Arew/Apun**: Reward/punishment learning rates
-- **K**: Perseverance decay
-- **betaF/betaP**: Frequency and perseverance weights
+**VSE** (8 parameters)
+Extends PVL-Delta by adding perseverance mechanisms. Choices depend on both learned values and recent action tendencies, weighted by parameter w.
+
+**ORL** (5 parameters)
+Tracks both outcome magnitude (EV) and frequency (EF) with separate learning rates for wins and losses. Includes fictive learning for unchosen options.
+
+## Data
+
+The pipeline analyzes 173 subjects (81,831 trials) from three published studies:
+- Ahn et al. (2014): Healthy controls, amphetamine users, heroin users
+- Fridberg et al. (2010): Healthy controls, cannabis users
+- Steingroever et al. (2014): Multiple trial lengths (95, 100, 150)
+
+## Quick Start
+
+Test the installation:
+```bash
+Rscript analysis/quick_test.R
+```
+
+Fit all models (3-5 hours on 8 cores):
+```bash
+Rscript analysis/fit_models.R
+```
+
+For systems with 32+ cores, you can fit models in parallel:
+```bash
+# In separate terminals
+Rscript analysis/fit_single_model.R pvl_delta
+Rscript analysis/fit_single_model.R vse
+Rscript analysis/fit_single_model.R orl
+```
+
+See `analysis/PARALLEL_FITTING.md` for details on high-performance computing setups.
 
 ## Requirements
 
 - R >= 4.0
 - JAGS >= 4.3
-- R packages: `rjags`, `coda`, `dplyr`
+- R packages: `rjags`, `coda`, `dplyr`, `parallel`
 
-## Installation
-
+Installation on Ubuntu:
 ```bash
-# Ubuntu/Debian
 sudo apt-get install r-base jags
-sudo R -e "install.packages(c('rjags', 'coda', 'dplyr'))"
-
-# macOS
-brew install jags
 R -e "install.packages(c('rjags', 'coda', 'dplyr'))"
 ```
 
-## Usage
+## Repository Structure
 
-### 1. Test Installation
-
-```bash
-Rscript analysis/quick_test.R
+```
+├── analysis/
+│   ├── fit_models.R           # Main fitting script
+│   ├── fit_single_model.R     # Fit individual models
+│   ├── quick_test.R           # Validation test
+│   ├── models/                # JAGS model definitions
+│   │   ├── pvl_delta_v2.jags
+│   │   ├── vse_v2.jags
+│   │   └── orl_v2.jags
+│   └── utils/                 # Analysis functions
+│       ├── load_data.R
+│       ├── diagnostics.R
+│       ├── ppc.R
+│       └── parameter_recovery.R
+├── data/raw/                  # Source data files
+└── docs/                      # Reference papers
 ```
 
-Expected output: Parameter estimates and R-hat values ~1.0
+## Validation
 
-### 2. Run Full Pipeline
+The pipeline includes comprehensive validation tools:
 
-```bash
-Rscript analysis/fit_models.R
-```
-
-Expected runtime: 3-5 hours on 8-core machine
-
-### 3. Diagnostics
-
-```R
+**Convergence diagnostics**: R-hat, effective sample size, trace plots
+```r
 source("analysis/utils/diagnostics.R")
-diagnostics <- run_full_diagnostics()
+run_full_diagnostics()
 ```
 
-### 4. Model Comparison
-
-```R
-source("analysis/utils/model_comparison.R")
-comparison <- compare_models()
+**Parameter recovery**: Verify identifiability with simulated data
+```r
+source("analysis/utils/parameter_recovery.R")
+run_parameter_recovery("pvl_delta")
 ```
 
-## Documentation
+**Posterior predictive checks**: Test model fit to observed data
+```r
+source("analysis/utils/ppc.R")
+run_all_ppc()
+```
 
-- [`GITHUB_DEPLOYMENT.md`](GITHUB_DEPLOYMENT.md) - GitHub setup guide
-- [`analysis/README.md`](analysis/README.md) - Detailed analysis documentation
-- [`analysis/CLOUD_SETUP.md`](analysis/CLOUD_SETUP.md) - Cloud deployment guide
-- [`analysis/TROUBLESHOOTING.md`](analysis/TROUBLESHOOTING.md) - Common issues and fixes
-- [`analysis/FINAL_SUMMARY.md`](analysis/FINAL_SUMMARY.md) - Project overview
+## Model Specifications
 
-## Features
+All models use weakly informative priors based on typical IGT parameter ranges. The v2 versions include numerical stability improvements:
+- Outcome scaling (÷100) to prevent overflow
+- Bounded parameters with appropriate truncation
+- Beta distributions for rates, truncated normals for unbounded parameters
 
-- ✅ Numerically stable JAGS models (v2 versions)
-- ✅ Validated on real IGT data
-- ✅ Complete diagnostic pipeline (R-hat, ESS, trace plots)
-- ✅ Posterior predictive checks
-- ✅ Parameter recovery validation
-- ✅ Cloud deployment ready
-- ✅ Comprehensive documentation
+See individual model files for detailed prior specifications and theoretical documentation.
 
-## Citation
+## Citations
 
-If you use this code, please cite the original model papers:
-
-- **PVL-Delta**: Ahn et al. (2014). Computational Psychiatry
-- **VSE**: Haines et al. (2018). Psychonomic Bulletin & Review
-- **ORL**: Haines et al. (2018). Psychonomic Bulletin & Review
+Model implementations based on:
+- Ahn, W. Y., et al. (2008). Journal of Neuroscience, Psychology, and Economics
+- Worthy, D. A., et al. (2013). Psychonomic Bulletin & Review
+- Haines, N., et al. (2018). Journal of Experimental Psychology: General
 
 Data from:
 - Ahn, W. Y., et al. (2014). Frontiers in Psychology
 - Fridberg, D. J., et al. (2010). Behavioral Neuroscience
 - Steingroever, H., et al. (2014). Journal of Problem Gambling
 
-## License
+## Further Documentation
 
-[Add your license here]
-
-## Contact
-
-[Add your contact information]
-
----
-
-**Status**: ✅ Ready for deployment
-**Last Updated**: 2026-01-02
+- `analysis/README.md` - Detailed pipeline documentation
+- `analysis/PAPER_WORKFLOW.md` - Publication preparation guide
+- `analysis/TROUBLESHOOTING.md` - Common issues and solutions
+- `analysis/PARALLEL_FITTING.md` - High-performance computing guide
