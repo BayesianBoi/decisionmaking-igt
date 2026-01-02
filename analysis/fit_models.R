@@ -26,8 +26,23 @@ config <- list(
   thin = 1,
   models = c("pvl_delta", "vse", "orl"),
   fit_all_studies = TRUE,  # If FALSE, fits only first study for testing
-  parallel = FALSE         # Set to TRUE for parallel chains (requires parallel package)
+  parallel = TRUE,         # Run chains in parallel for faster execution
+  n_cores = 4              # Number of cores to use (one per chain)
 )
+
+# Setup parallel execution if requested
+if (config$parallel) {
+  if (!require("parallel", quietly = TRUE)) {
+    warning("parallel package not available. Falling back to sequential execution.")
+    config$parallel <- FALSE
+  } else {
+    # Detect available cores
+    n_available <- parallel::detectCores()
+    config$n_cores <- min(config$n_cores, n_available, config$n_chains)
+    cat(sprintf("Parallel mode enabled: using %d cores (out of %d available)\n",
+                config$n_cores, n_available))
+  }
+}
 
 cat("=== IGT Model Fitting Pipeline ===\n\n")
 
@@ -67,20 +82,6 @@ for (model_name in config$models) {
   model_data <- prepare_jags_data_for_model(all_data, model_name,
                                             study_filter = if(!config$fit_all_studies) "Ahn2014_HC" else NULL)
 
-  # Initialize JAGS model
-  cat("Initializing JAGS model...\n")
-  jags_model <- jags.model(
-    file = model_file,
-    data = model_data,
-    n.chains = config$n_chains,
-    n.adapt = config$n_adapt,
-    quiet = FALSE
-  )
-
-  # Burn-in
-  cat(sprintf("Running burn-in (%d iterations)...\n", config$n_burnin))
-  update(jags_model, n.iter = config$n_burnin)
-
   # Parameters to monitor
   if (model_name == "pvl_delta") {
     params <- c("mu_A", "mu_alpha", "mu_cons", "mu_lambda",
@@ -96,14 +97,83 @@ for (model_name in config$models) {
                 "Arew", "Apun", "K", "betaF", "betaP")
   }
 
-  # Sample from posterior
-  cat(sprintf("Sampling from posterior (%d iterations)...\n", config$n_iter))
-  samples <- coda.samples(
-    model = jags_model,
-    variable.names = params,
-    n.iter = config$n_iter,
-    thin = config$thin
-  )
+  if (config$parallel) {
+    # Parallel execution: run each chain as a separate process
+    cat(sprintf("Running %d chains in parallel on %d cores...\n",
+                config$n_chains, config$n_cores))
+
+    # Function to fit a single chain
+    fit_chain <- function(chain_id) {
+      # Initialize model for this chain
+      chain_model <- jags.model(
+        file = model_file,
+        data = model_data,
+        n.chains = 1,  # One chain per process
+        n.adapt = config$n_adapt,
+        quiet = TRUE
+      )
+
+      # Burn-in
+      update(chain_model, n.iter = config$n_burnin)
+
+      # Sample
+      chain_samples <- coda.samples(
+        model = chain_model,
+        variable.names = params,
+        n.iter = config$n_iter,
+        thin = config$thin
+      )
+
+      return(chain_samples)
+    }
+
+    # Run chains in parallel
+    cl <- parallel::makeCluster(config$n_cores)
+    on.exit(parallel::stopCluster(cl))
+
+    # Export necessary objects to cluster
+    parallel::clusterExport(cl, c("model_file", "model_data", "params", "config"),
+                           envir = environment())
+
+    # Load rjags on each worker
+    parallel::clusterEvalQ(cl, {
+      library(rjags)
+      library(coda)
+    })
+
+    # Run chains
+    chain_list <- parallel::parLapply(cl, 1:config$n_chains, fit_chain)
+
+    # Combine chains into mcmc.list
+    samples <- as.mcmc.list(lapply(chain_list, function(x) x[[1]]))
+
+    parallel::stopCluster(cl)
+    cat("Parallel sampling complete.\n")
+
+  } else {
+    # Sequential execution: original approach
+    cat("Initializing JAGS model...\n")
+    jags_model <- jags.model(
+      file = model_file,
+      data = model_data,
+      n.chains = config$n_chains,
+      n.adapt = config$n_adapt,
+      quiet = FALSE
+    )
+
+    # Burn-in
+    cat(sprintf("Running burn-in (%d iterations)...\n", config$n_burnin))
+    update(jags_model, n.iter = config$n_burnin)
+
+    # Sample from posterior
+    cat(sprintf("Sampling from posterior (%d iterations)...\n", config$n_iter))
+    samples <- coda.samples(
+      model = jags_model,
+      variable.names = params,
+      n.iter = config$n_iter,
+      thin = config$thin
+    )
+  }
 
   # Store results
   fit_results[[model_name]] <- list(
