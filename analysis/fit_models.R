@@ -27,7 +27,7 @@ config <- list(
   models = c("pvl_delta", "vse", "orl"),
   fit_all_studies = TRUE,  # If FALSE, fits only first study for testing
   parallel = TRUE,         # Run chains in parallel for faster execution
-  n_cores = 4              # Number of cores to use (one per chain)
+  n_cores = NULL           # NULL = auto-detect and use all available cores
 )
 
 # Setup parallel execution if requested
@@ -38,7 +38,14 @@ if (config$parallel) {
   } else {
     # Detect available cores
     n_available <- parallel::detectCores()
-    config$n_cores <- min(config$n_cores, n_available, config$n_chains)
+
+    # Set n_cores: use all available if NULL, otherwise use specified value
+    if (is.null(config$n_cores)) {
+      config$n_cores <- min(n_available, config$n_chains)
+    } else {
+      config$n_cores <- min(config$n_cores, n_available, config$n_chains)
+    }
+
     cat(sprintf("Parallel mode enabled: using %d cores (out of %d available)\n",
                 config$n_cores, n_available))
   }
