@@ -101,6 +101,9 @@ prepare_jags_data_for_model <- function(dat, model, study_filter = NULL) {
 #' @param jags_data List with JAGS data
 #' @return TRUE if valid, stops with error otherwise
 check_jags_data <- function(jags_data) {
+  # Get max trials from choice matrix
+  max_trials <- ncol(jags_data$choice)
+
   # Check dimensions
   if (jags_data$N != length(jags_data$Tsubj)) {
     stop("Number of subjects doesn't match Tsubj length")
@@ -108,10 +111,6 @@ check_jags_data <- function(jags_data) {
 
   if (jags_data$N != nrow(jags_data$choice)) {
     stop("Number of subjects doesn't match choice matrix rows")
-  }
-
-  if (jags_data$T != ncol(jags_data$choice)) {
-    stop("Max trials doesn't match choice matrix columns")
   }
 
   # Check choice values
@@ -130,15 +129,15 @@ check_jags_data <- function(jags_data) {
     }
 
     # Should be NA after n_trials
-    if (n_trials < jags_data$T) {
-      if (!all(is.na(jags_data$choice[i, (n_trials+1):jags_data$T]))) {
+    if (n_trials < max_trials) {
+      if (!all(is.na(jags_data$choice[i, (n_trials+1):max_trials]))) {
         warning(sprintf("Non-NA data for subject %d beyond Tsubj", i))
       }
     }
   }
 
-  message(sprintf("JAGS data check passed: N=%d, T=%d, total observations=%d",
-                  jags_data$N, jags_data$T, sum(jags_data$Tsubj)))
+  message(sprintf("JAGS data check passed: N=%d, max_T=%d, total observations=%d",
+                  jags_data$N, max_trials, sum(jags_data$Tsubj)))
 
   return(TRUE)
 }
