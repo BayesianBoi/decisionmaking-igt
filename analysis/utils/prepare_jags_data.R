@@ -42,14 +42,13 @@ prepare_jags_data <- function(dat, study_filter = NULL) {
   }
 
   # Create JAGS data list
+  # Note: Only including variables used by all models
+  # T, reward, and loss are computed but only needed for specific models
   jags_data <- list(
     N = n_subj,
-    T = max_trials,
     Tsubj = n_trials_per_subj,
     choice = choice_mat,
-    reward = reward_mat / 100,  # Scale to match model expectations
-    loss = loss_mat / 100,
-    outcome = net_mat / 100
+    outcome = net_mat / 100  # Scaled outcomes for numerical stability
   )
 
   return(jags_data)
