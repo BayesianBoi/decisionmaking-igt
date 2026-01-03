@@ -1,12 +1,9 @@
 # Analysis outputs (model fits and intermediate results)
 analysis/outputs/*.rds
 analysis/outputs/*.log
+results/
 
 # Publication outputs (generated from fitted models)
-# Uncomment to track publication figures/tables in git:
-# analysis/outputs/publication/
-
-# But ignore if you prefer to regenerate them
 analysis/outputs/publication/figures/*.pdf
 analysis/outputs/publication/figures/*.png
 analysis/outputs/publication/tables/*.csv
@@ -38,10 +35,6 @@ nohup.out
 *.tmp
 *.temp
 
-# Archive files (optional - uncomment if you don't want to track)
-# *.tar.gz
-# *.zip
-
 # IDE files
 .vscode/
 .idea/
@@ -50,6 +43,5 @@ nohup.out
 # Keep outputs directory but not contents
 !analysis/outputs/.gitkeep
 
-# Legacy code and reference files
+# Legacy code (old analysis before EEF implementation)
 R/
-docs/

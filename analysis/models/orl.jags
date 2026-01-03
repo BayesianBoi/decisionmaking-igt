@@ -1,38 +1,48 @@
 model {
   # ORL Model for Iowa Gambling Task
-  # Outcome Representation Learning
-  # Parameters: Arew (reward learning rate), Apun (punishment learning rate),
-  #             K (perseverance decay), betaF (frequency weight),
-  #             betaP (perseverance weight)
+  # Outcome Representation Learning (Haines et al., 2018; Worthy et al., 2013)
+  #
+  # Key features:
+  # - Separate learning rates for rewards (Arew) and punishments (Apun)
+  # - Expected value (EV) tracks outcome magnitudes
+  # - Expected frequency (EF) tracks outcome valence (win/loss)
+  # - Fictive updating: Unchosen decks learn opposite outcome frequencies
+  #   Rationale: If chosen deck wins (+1), unchosen decks learn they would have lost
+  #   Implementation: Distribute opposite frequency equally across 3 unchosen decks (-1/3)
+  # - Perseverance: Tendency to repeat recent choices (decay parameter K)
+  # - Choice = softmax(EV + betaF*EF + betaP*perseverance)
+  #
+  # This version uses improved numerical stability with bounded parameters
 
-  # Hyperpriors (group-level distributions)
-  mu_Arew ~ dunif(0, 1)
-  mu_Apun ~ dunif(0, 1)
-  mu_K ~ dunif(0, 5)
-  mu_betaF ~ dunif(-10, 10)
-  mu_betaP ~ dunif(-10, 10)
+  # Hyperpriors (weakly informative based on IGT literature)
+  # Arew/Apun (learning rates): Often similar, both centered at 0.5
+  mu_Arew ~ dbeta(2, 2)
+  mu_Apun ~ dbeta(2, 2)
 
-  sigma_Arew ~ dunif(0, 1)
-  sigma_Apun ~ dunif(0, 1)
-  sigma_K ~ dunif(0, 5)
-  sigma_betaF ~ dunif(0, 10)
-  sigma_betaP ~ dunif(0, 10)
+  # K (perseverance decay): Typically 0.5-2.0, allow [0,10]
+  # Using precision=2 -> SD=0.71
+  mu_K ~ dnorm(1, 2)T(0, 10)
 
-  # Subject-level parameters
+  # betaF/betaP (frequency and perseverance weights): Can be positive or negative
+  # Centered at 0, allowing typical range of -3 to +3
+  # Using precision=1 -> SD=1
+  mu_betaF ~ dnorm(0, 1)T(-10, 10)
+  mu_betaP ~ dnorm(0, 1)T(-10, 10)
+
+  # Group-level variability
+  sigma_Arew ~ dunif(0, 0.5)
+  sigma_Apun ~ dunif(0, 0.5)
+  sigma_K ~ dunif(0, 1.5)
+  sigma_betaF ~ dunif(0, 2)
+  sigma_betaP ~ dunif(0, 2)
+
+  # Subject-level parameters with truncation
   for (s in 1:N) {
-    # Raw parameters (unbounded)
-    Arew_raw[s] ~ dnorm(mu_Arew, pow(sigma_Arew, -2))
-    Apun_raw[s] ~ dnorm(mu_Apun, pow(sigma_Apun, -2))
-    K_raw[s] ~ dnorm(mu_K, pow(sigma_K, -2))
-    betaF_raw[s] ~ dnorm(mu_betaF, pow(sigma_betaF, -2))
-    betaP_raw[s] ~ dnorm(mu_betaP, pow(sigma_betaP, -2))
-
-    # Constrained parameters
-    Arew[s] <- phi(Arew_raw[s])     # reward learning rate: [0, 1]
-    Apun[s] <- phi(Apun_raw[s])     # punishment learning rate: [0, 1]
-    K[s] <- exp(K_raw[s])           # perseverance decay: (0, inf)
-    betaF[s] <- betaF_raw[s]        # frequency weight: (-inf, inf)
-    betaP[s] <- betaP_raw[s]        # perseverance weight: (-inf, inf)
+    Arew[s] ~ dbeta(mu_Arew * (1/sigma_Arew^2 - 1), (1-mu_Arew) * (1/sigma_Arew^2 - 1))T(0.01, 0.99)
+    Apun[s] ~ dbeta(mu_Apun * (1/sigma_Apun^2 - 1), (1-mu_Apun) * (1/sigma_Apun^2 - 1))T(0.01, 0.99)
+    K[s] ~ dnorm(mu_K, 1/sigma_K^2)T(0.01, 10)
+    betaF[s] ~ dnorm(mu_betaF, 1/sigma_betaF^2)T(-10, 10)
+    betaP[s] ~ dnorm(mu_betaP, 1/sigma_betaP^2)T(-10, 10)
   }
 
   # Trial-by-trial updates
@@ -49,49 +59,43 @@ model {
       for (d in 1:4) {
         # Combined utility
         util_combined[s, t, d] <- ev[s, t, d] + ef[s, t, d] * betaF[s] + pers[s, t, d] * betaP[s]
-
-        # Exp-utility for each deck
         exp_util[s, t, d] <- exp(util_combined[s, t, d])
       }
 
       # Softmax probabilities
       for (d in 1:4) {
-        p_choice[s, t, d] <- exp_util[s, t, d] / sum(exp_util[s, t, ])
+        p[s, t, d] <- exp_util[s, t, d] / sum(exp_util[s, t, ])
       }
 
-      # Observed choice likelihood
-      choice[s, t] ~ dcat(p_choice[s, t, ])
+      # Observed choice
+      choice[s, t] ~ dcat(p[s, t, ])
 
       # Determine sign of outcome for binary coding
       sign_out[s, t] <- ifelse(outcome[s, t] > 0, 1, ifelse(outcome[s, t] < 0, -1, 0))
 
-      # Prediction errors
+      # Prediction errors for chosen deck
       PE_val[s, t] <- outcome[s, t] - ev[s, t, choice[s, t]]
       PE_freq[s, t] <- sign_out[s, t] - ef[s, t, choice[s, t]]
 
-      # Learning rate depends on outcome valence
+      # Learning rates depend on outcome valence
       lr_val[s, t] <- ifelse(outcome[s, t] >= 0, Arew[s], Apun[s])
       lr_freq[s, t] <- ifelse(outcome[s, t] >= 0, Arew[s], Apun[s])
       lr_fic[s, t] <- ifelse(outcome[s, t] >= 0, Apun[s], Arew[s])
 
       # Update expected values, frequencies, and perseverance
       for (d in 1:4) {
-        if (d == choice[s, t]) {
-          # Chosen deck: update value and frequency
-          ev[s, t+1, d] <- ev[s, t, d] + lr_val[s, t] * PE_val[s, t]
-          ef[s, t+1, d] <- ef[s, t, d] + lr_freq[s, t] * PE_freq[s, t]
+        # Chosen deck updates
+        ev[s, t+1, d] <- equals(d, choice[s, t]) * (ev[s, t, d] + lr_val[s, t] * PE_val[s, t]) +
+                         (1 - equals(d, choice[s, t])) * ev[s, t, d]
 
-          # Perseverance: set to 1 for chosen, then decay
-          pers[s, t+1, d] <- 1 / (1 + K[s])
-        } else {
-          # Unchosen decks: fictive updating for frequency only
-          PE_freq_fic[s, t, d] <- -sign_out[s, t] / 3 - ef[s, t, d]
-          ev[s, t+1, d] <- ev[s, t, d]
-          ef[s, t+1, d] <- ef[s, t, d] + lr_fic[s, t] * PE_freq_fic[s, t, d]
+        # Frequency updates (chosen deck: factual, unchosen: fictive)
+        PE_freq_fic[s, t, d] <- -sign_out[s, t] / 3 - ef[s, t, d]
 
-          # Perseverance: decay only
-          pers[s, t+1, d] <- pers[s, t, d] / (1 + K[s])
-        }
+        ef[s, t+1, d] <- equals(d, choice[s, t]) * (ef[s, t, d] + lr_freq[s, t] * PE_freq[s, t]) +
+                         (1 - equals(d, choice[s, t])) * (ef[s, t, d] + lr_fic[s, t] * PE_freq_fic[s, t, d])
+
+        # Perseverance: set to 1 for chosen, decay for all
+        pers[s, t+1, d] <- (equals(d, choice[s, t]) * 1 + (1 - equals(d, choice[s, t])) * pers[s, t, d]) / (1 + K[s])
       }
     }
   }

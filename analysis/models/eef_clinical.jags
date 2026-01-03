@@ -1,0 +1,170 @@
+model {
+  # EEF Model for Iowa Gambling Task - Clinical Populations
+  # Exploitation and Exploration with Forgetting (Yang et al., 2025)
+  #
+  # Adapted for substance use disorder populations (Ahn 2014, Fridberg 2010)
+  # with theoretically-grounded priors for clinical neuroscience research
+  #
+  # Four parameters:
+  # - theta: Outcome sensitivity [0, 1] - power function for gains/losses
+  # - lambda_forget: Forgetting rate [0, 1] - memory decay per trial
+  # - phi: Exploration incentive [-5, 5] - attraction to unexplored decks
+  # - cons: Choice consistency [0, 5] - inverse temperature (determinism)
+  #
+  # Key differences from PVL-Delta:
+  # 1. Symmetric utility (no loss aversion parameter)
+  # 2. Forgetting applied to BOTH exploitation and exploration modules
+  # 3. Exploration module tracks recency, not just value
+  # 4. First-choice priors initialize deck weights
+  #
+  # Theoretical predictions for substance users:
+  # - Higher lambda_forget (memory deficits)
+  # - Lower/negative phi (reduced exploration)
+  # - Similar/lower theta (blunted reward sensitivity)
+  # - Normal cons (intact choice consistency)
+
+  #============================================================================
+  # HYPERPRIORS - Group-level parameters
+  #============================================================================
+
+  # theta (outcome sensitivity): How much gains/losses affect utility
+  # Literature: Yang Fig. 9 shows ~0.3-0.35 for healthy adults
+  # Beta(1.5, 3) gives mean=0.33, mode=0.25, SD=0.19
+  # Allows risk-seeking (theta < 0.5) or risk-averse (theta > 0.5)
+  mu_theta ~ dbeta(1.5, 3)
+
+  # lambda_forget (forgetting rate): Memory decay per trial
+  # Literature: Yang Fig. 9 shows 0.46 (young), 0.54 (old)
+  # Beta(2, 3) gives mean=0.4, mode=0.33, SD=0.19
+  # PREDICTION: Substance users will have higher lambda_forget than HC
+  mu_lambda_forget ~ dbeta(2, 3)
+
+  # phi (exploration incentive): Attraction to unchosen decks
+  # Literature: Yang Fig. 9 shows ~0.5-0.7 for healthy adults
+  # Normal(0, 2) allows negative values (exploration aversion)
+  # PREDICTION: Substance users may have lower/negative phi (stick to habits)
+  mu_phi ~ dnorm(0, 2)T(-5, 5)
+
+  # cons (choice consistency): Inverse temperature for softmax
+  # Literature: Standard IGT range 0.5-2.0 (Ahn et al., 2008)
+  # Normal(1, 2) gives mean=1, SD=0.71
+  # PREDICTION: No group difference expected
+  mu_cons ~ dnorm(1, 2)T(0, 5)
+
+  #============================================================================
+  # GROUP-LEVEL VARIABILITY (sigma parameters)
+  #============================================================================
+
+  # Constrained to prevent over-dispersion in clinical samples
+  # Rationale: Smaller samples (N=38-48 per group) need regularization
+
+  sigma_theta ~ dunif(0, 0.3)           # Moderate individual differences
+  sigma_lambda_forget ~ dunif(0, 0.3)   # Moderate individual differences
+  sigma_phi ~ dunif(0, 2)               # Allow wide individual differences
+  sigma_cons ~ dunif(0, 1.5)            # Moderate individual differences
+
+  #============================================================================
+  # SUBJECT-LEVEL PARAMETERS
+  #============================================================================
+
+  for (s in 1:N) {
+    # theta: Beta distribution (bounded [0,1])
+    # Using method of moments to convert mu/sigma to alpha/beta parameters
+    theta[s] ~ dbeta(
+      mu_theta * (1/sigma_theta^2 - 1),
+      (1 - mu_theta) * (1/sigma_theta^2 - 1)
+    )T(0.01, 0.99)
+
+    # lambda_forget: Beta distribution (bounded [0,1])
+    lambda_forget[s] ~ dbeta(
+      mu_lambda_forget * (1/sigma_lambda_forget^2 - 1),
+      (1 - mu_lambda_forget) * (1/sigma_lambda_forget^2 - 1)
+    )T(0.01, 0.99)
+
+    # phi: Normal distribution (can be negative)
+    phi[s] ~ dnorm(mu_phi, 1/sigma_phi^2)T(-5, 5)
+
+    # cons: Normal distribution (positive only)
+    cons[s] ~ dnorm(mu_cons, 1/sigma_cons^2)T(0.01, 5)
+  }
+
+  #============================================================================
+  # TRIAL-BY-TRIAL UPDATES
+  #============================================================================
+
+  for (s in 1:N) {
+
+    # Initialize exploitation and exploration weights
+    # w_ini is calculated from first-choice data (passed as data)
+    for (d in 1:4) {
+      exploit[s, 1, d] <- w_ini[d]      # Data-driven initial bias
+      explore[s, 1, d] <- 0             # No exploration bias initially
+    }
+
+    for (t in 1:Tsubj[s]) {
+
+      #------------------------------------------------------------------------
+      # CHOICE PROBABILITIES (Softmax)
+      #------------------------------------------------------------------------
+
+      for (d in 1:4) {
+        # Combined weight: exploitation + exploration
+        weight[s, t, d] <- exploit[s, t, d] + explore[s, t, d]
+
+        # Apply consistency parameter
+        v[s, t, d] <- cons[s] * weight[s, t, d]
+
+        # Exponentiate for softmax
+        exp_v[s, t, d] <- exp(v[s, t, d])
+      }
+
+      # Normalize to probabilities
+      for (d in 1:4) {
+        p[s, t, d] <- exp_v[s, t, d] / sum(exp_v[s, t, ])
+      }
+
+      # Observed choice (likelihood)
+      choice[s, t] ~ dcat(p[s, t, ])
+
+      #------------------------------------------------------------------------
+      # UTILITY COMPUTATION (Symmetric power function)
+      #------------------------------------------------------------------------
+
+      # Separate gains and losses
+      gain[s, t] <- max(outcome[s, t], 0)
+      loss[s, t] <- max(-outcome[s, t], 0)
+
+      # Utility: V(t) = Gain^theta - Loss^theta (Yang Eq. 2)
+      # Note: Yang uses SYMMETRIC weighting (no loss aversion parameter)
+      # Add small constant to avoid pow(0, theta) issues
+      util[s, t] <- pow(gain[s, t] + 0.001, theta[s]) -
+                    pow(loss[s, t] + 0.001, theta[s])
+
+      #------------------------------------------------------------------------
+      # EXPLOITATION UPDATE (Yang Eq. 1 & 3)
+      #------------------------------------------------------------------------
+
+      for (d in 1:4) {
+        # Chosen deck: decay + new information
+        # Unchosen decks: decay only
+        exploit[s, t+1, d] <- equals(d, choice[s, t]) *
+                              ((1 - lambda_forget[s]) * exploit[s, t, d] + util[s, t]) +
+                              (1 - equals(d, choice[s, t])) *
+                              ((1 - lambda_forget[s]) * exploit[s, t, d])
+      }
+
+      #------------------------------------------------------------------------
+      # EXPLORATION UPDATE (Yang Eq. 4 & 5)
+      #------------------------------------------------------------------------
+
+      for (d in 1:4) {
+        # Chosen deck: reset to 0
+        # Unchosen decks: approach phi (exploration incentive)
+        explore[s, t+1, d] <- equals(d, choice[s, t]) * 0 +
+                              (1 - equals(d, choice[s, t])) *
+                              (lambda_forget[s] * explore[s, t, d] +
+                               (1 - lambda_forget[s]) * phi[s])
+      }
+    }
+  }
+}

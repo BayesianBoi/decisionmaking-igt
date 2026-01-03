@@ -1,339 +1,131 @@
-# Paper/Manuscript Workflow Guide
-
-Complete workflow from data to publication-ready outputs.
+# Paper Workflow Guide
 
 ## Overview
 
-This pipeline generates all figures, tables, and formatted results needed for manuscript preparation:
+This guide walks through the complete workflow from model fitting to manuscript submission.
 
-- ✅ **Trace plots** for convergence assessment
-- ✅ **Posterior density plots** for parameter distributions
-- ✅ **Forest plots** for model comparison
-- ✅ **CSV tables** ready for manuscript
-- ✅ **APA-formatted results** for copy-paste
-- ✅ **LaTeX-ready tables** (optional)
+## Step-by-Step Workflow
 
-## Workflow Steps
+### 1. Parameter Recovery (Validation)
 
-### 1. Fit Models (Cloud)
+Before fitting real data, verify the model can recover known parameters:
 
 ```bash
-# On cloud machine
-Rscript analysis/fit_models.R > fitting.log 2>&1
+Rscript analysis/scripts/parameter_recovery_eef.R
 ```
 
-**Output:** 3 model fit files (~3-5 hours)
-- `pvl_delta_fit.rds`
-- `vse_fit.rds`
-- `orl_fit.rds`
+**Output:** `results/parameter_recovery/`
+- `parameter_recovery.pdf` - Scatter plots of true vs recovered values
+- Correlation > 0.8 indicates good recovery
 
-### 2. Download Results (Local)
+### 2. Fit EEF Model
 
 ```bash
-# On cloud
-tar -czf model_fits.tar.gz analysis/outputs/*_fit.rds
-
-# Locally
-scp user@cloud-ip:~/igt-decision-models/analysis/outputs/model_fits.tar.gz .
-tar -xzf model_fits.tar.gz -C analysis/outputs/
+Rscript analysis/scripts/fit_eef_clinical.R
 ```
 
-### 3. Generate Publication Outputs (Local)
+**Runtime:** 4-8 hours on M1 Mac
+
+**Output:** `results/eef_clinical/`
+- `mcmc_samples.rds` - Posterior samples
+- `parameter_summary.rds` - Mean, SD, quantiles
+- `diagnostics.rds` - R-hat, ESS
+- `trace_plots.pdf` - Convergence diagnostics
+- `density_plots.pdf` - Posterior distributions
+
+### 3. Fit Comparison Models
 
 ```bash
-# This generates ALL figures and tables
-Rscript analysis/generate_paper_outputs.R
+Rscript analysis/scripts/fit_pvl_delta.R
+Rscript analysis/scripts/fit_vse.R
 ```
 
-**Outputs:**
-```
-analysis/outputs/publication/
-├── figures/
-│   ├── pvl_delta_traces.pdf       # Convergence checking
-│   ├── pvl_delta_posteriors.pdf   # Parameter distributions
-│   ├── vse_traces.pdf
-│   ├── vse_posteriors.pdf
-│   ├── orl_traces.pdf
-│   ├── orl_posteriors.pdf
-│   └── model_comparison_forest.pdf # Compare all models
-├── tables/
-│   ├── table1_parameter_estimates.csv
-│   ├── table2_model_comparison.csv
-│   └── table3_convergence.csv
-├── RESULTS_SUMMARY.md            # Quick overview
-├── APA_FORMATTED_RESULTS.txt     # Copy-paste to manuscript
-└── MODEL_COMPARISON.md           # Comparison notes
+### 4. Check Convergence
+
+Verify in diagnostic output:
+- R-hat < 1.1 for all parameters
+- Effective sample size > 1000
+- Trace plots show good mixing
+
+### 5. Group Comparisons
+
+```bash
+Rscript analysis/scripts/compare_groups.R
 ```
 
-### 4. Review Convergence
+**Key outputs:**
+- Posterior probability that λ_substance > λ_HC
+- 95% credible intervals for group differences
+- Violin plots by group
 
-Check `tables/table3_convergence.csv`:
+### 6. Model Comparison
 
-| Model      | Max_Rhat | Mean_Rhat | Min_ESS | Mean_ESS | Converged |
-|------------|----------|-----------|---------|----------|-----------|
-| pvl_delta  | 1.05     | 1.02      | 450     | 2500     | TRUE      |
-| vse        | 1.08     | 1.03      | 380     | 2200     | TRUE      |
-| orl        | 1.06     | 1.02      | 420     | 2400     | TRUE      |
-
-**Criteria:**
-- ✅ R-hat < 1.1 for all parameters
-- ✅ ESS > 400 (ideally > 1000)
-- ✅ Converged = TRUE
-
-**If not converged:**
-- Re-run with more iterations
-- Check trace plots for issues
-- See TROUBLESHOOTING.md
-
-### 5. Review Figures
-
-**Trace Plots** (`*_traces.pdf`):
-- Should show "fuzzy caterpillar" pattern
-- All chains should overlap
-- No trends or patterns
-
-**Posterior Plots** (`*_posteriors.pdf`):
-- Smooth distributions (not multimodal)
-- Reasonable ranges
-- Consistent with literature
-
-**Forest Plot** (`model_comparison_forest.pdf`):
-- Compare parameter estimates across models
-- Check credible interval overlap
-- Identify key differences
-
-### 6. Prepare Manuscript
-
-#### Method A: Copy APA-Formatted Results
-
-Open `APA_FORMATTED_RESULTS.txt`:
-
-```
-PVL_DELTA Model
---------------------------------------------------
-
-mu_A: M = 0.046, SD = 0.023, 95% CI [0.008, 0.096]
-mu_alpha: M = 0.231, SD = 0.146, 95% CI [0.012, 0.533]
-mu_cons: M = 2.422, SD = 0.524, 95% CI [1.396, 3.431]
-mu_lambda: M = 0.328, SD = 0.230, 95% CI [0.011, 0.828]
+```bash
+Rscript analysis/scripts/compare_models.R
 ```
 
-Copy directly into manuscript Results section.
+Compares convergence and parameter estimates across EEF, PVL-Delta, and VSE.
 
-#### Method B: Import CSV Tables
+### 7. Generate Figures
 
-Import `tables/table1_parameter_estimates.csv` into Word/LaTeX:
-
-**Word:**
-1. Insert → Table → Insert Table from File
-2. Select CSV file
-3. Format as needed
-
-**LaTeX:**
-```latex
-\begin{table}
-\input{tables/table1_parameter_estimates.tex}
-\caption{Parameter estimates with 95\% credible intervals}
-\end{table}
+```bash
+Rscript analysis/scripts/create_figures.R
 ```
 
-#### Method C: Insert Figures
+**Output:** `results/figures/`
+- `figure1_model_comparison.pdf`
+- `figure2_group_differences.pdf`
+- `figure3_parameter_recovery.pdf`
+- `figure4_posterior_predictive.pdf`
 
-```latex
-\begin{figure}
-\includegraphics[width=\textwidth]{figures/model_comparison_forest.pdf}
-\caption{Parameter estimates across models}
-\label{fig:forest}
-\end{figure}
-```
+## Manuscript Integration
 
-## Advanced: Custom Visualizations
-
-### Generate Specific Figure
-
-```R
-source("analysis/utils/visualization.R")
-
-# Load fitted model
-fit <- readRDS("analysis/outputs/pvl_delta_fit.rds")
-
-# Custom trace plot for specific parameters
-create_trace_plots(
-  fit$samples,
-  params = c("mu_A", "mu_alpha"),
-  output_file = "my_custom_traces.pdf"
-)
-
-# Custom density plot
-create_density_plots(
-  fit$samples,
-  params = c("mu_A", "mu_cons"),
-  output_file = "my_custom_densities.pdf"
-)
-```
-
-### Compare Specific Parameters
-
-```R
-source("analysis/utils/visualization.R")
-
-# Load all models
-pvl <- readRDS("analysis/outputs/pvl_delta_fit.rds")
-vse <- readRDS("analysis/outputs/vse_fit.rds")
-orl <- readRDS("analysis/outputs/orl_fit.rds")
-
-fits <- list(pvl_delta = pvl, vse = vse, orl = orl)
-
-# Compare learning rate across models
-compare_parameter_across_models(
-  fits,
-  param = "mu_A",
-  output_file = "learning_rate_comparison.pdf"
-)
-```
-
-### Create Custom Tables
-
-```R
-source("analysis/utils/reporting.R")
-
-# Generate specific table
-fit <- readRDS("analysis/outputs/pvl_delta_fit.rds")
-param_table <- generate_parameter_table(fit, "PVL-Delta")
-
-# Export for manuscript
-write.csv(param_table, "my_param_table.csv", row.names = FALSE)
-
-# Generate LaTeX version
-latex_code <- generate_latex_table(
-  param_table,
-  caption = "PVL-Delta parameter estimates",
-  label = "tab:pvl_params"
-)
-writeLines(latex_code, "my_table.tex")
-```
-
-## Publication Checklist
-
-Before submitting:
-
-- [ ] All models converged (R-hat < 1.1)
-- [ ] Trace plots reviewed and acceptable
-- [ ] Posterior distributions reasonable
-- [ ] Parameter estimates match expectations
-- [ ] Figures generated and formatted
-- [ ] Tables exported and verified
-- [ ] Results formatted for manuscript
-- [ ] Model comparison conducted
-- [ ] Convergence diagnostics reported
-- [ ] Supplementary materials prepared
-
-## Manuscript Sections
-
-### Methods
-
-Report from `table2_model_comparison.csv`:
+### Methods Section
 
 ```
-"We fit three hierarchical Bayesian models to the IGT data:
-PVL-Delta (4 parameters), VSE (8 parameters), and ORL (5 parameters).
-All models were implemented in JAGS with 4 chains, 2000 burn-in iterations,
-and 5000 sampling iterations."
+We employed the Exploitation-Exploration with Forgetting (EEF) model
+(Yang et al., 2025) to analyze Iowa Gambling Task performance. The model
+was fit using hierarchical Bayesian estimation in JAGS with 4 chains,
+5000 adaptation iterations, 10000 burn-in, and 20000 sampling iterations.
+
+Prior specifications followed Yang et al. (2025) with modifications for
+clinical populations (see Supplementary Materials for full prior justification).
 ```
 
-### Results - Convergence
+### Results Section
 
-Report from `table3_convergence.csv`:
+1. **Convergence:** Report from diagnostics.rds
+2. **Group Comparisons:** Report P(λ_substance > λ_HC) and 95% CIs
+3. **Model Comparison:** Report which model best fits the data
 
+Example:
 ```
-"All models showed excellent convergence (R-hat < 1.1 for all parameters).
-Effective sample sizes ranged from XXX to XXX (M = XXX), indicating
-adequate sampling from the posterior distributions."
-```
-
-### Results - Parameter Estimates
-
-Use `APA_FORMATTED_RESULTS.txt`:
-
-```
-"For the PVL-Delta model, the group-level learning rate was
-M = 0.046 (SD = 0.023, 95% CI [0.008, 0.096]), indicating..."
+Substance users exhibited higher forgetting rates than healthy controls
+(λ_substance = 0.52, 95% CI [0.45, 0.59] vs λ_HC = 0.38, 95% CI [0.31, 0.45];
+posterior probability P(λ_substance > λ_HC) = 0.94).
 ```
 
 ### Figures
 
-- **Figure 1**: Posterior distributions (`pvl_delta_posteriors.pdf`)
-- **Figure 2**: Model comparison (`model_comparison_forest.pdf`)
-- **Figure 3**: Convergence diagnostics (`pvl_delta_traces.pdf` - supplementary)
+- **Figure 1:** Group differences in forgetting rate
+- **Figure 2:** Parameter recovery validation
+- **Figure 3:** Posterior predictive checks
 
-### Tables
+### Supplementary Materials
 
-- **Table 1**: Parameter estimates (`table1_parameter_estimates.csv`)
-- **Table 2**: Model comparison (`table2_model_comparison.csv`)
-- **Table S1**: Convergence diagnostics (`table3_convergence.csv` - supplementary)
+Include:
+- `docs/PRIOR_JUSTIFICATIONS.md` - Full prior specifications
+- Trace plots for all parameters
+- Complete parameter estimates table
 
-## Tips for Publication
+## Publication Checklist
 
-1. **Report Exact Values**: Use values from CSV tables, not figures
-2. **Show Uncertainty**: Always report 95% CIs
-3. **Document Priors**: Note that models use weakly informative truncated priors
-4. **Convergence**: Include trace plots in supplementary materials
-5. **Reproducibility**: Mention code/data availability
+Before submission:
 
-## Example Results Section
-
-```
-Results
-
-Model Convergence
-
-All three models converged successfully (R̂ < 1.1 for all parameters;
-see Table S1). Effective sample sizes exceeded 400 for all parameters,
-with a mean ESS of 2300 across all models.
-
-Parameter Estimates
-
-PVL-Delta Model. The group-level learning rate showed moderate updating
-(μ_A = 0.046, 95% CI [0.008, 0.096]), with outcome sensitivity
-μ_α = 0.231 [0.012, 0.533], choice consistency μ_c = 2.422 [1.396, 3.431],
-and loss aversion μ_λ = 0.328 [0.011, 0.828]. See Figure 1 for full
-posterior distributions.
-
-[Continue for other models...]
-
-Model Comparison
-
-Forest plot comparison (Figure 2) revealed substantial differences in
-learning rates across models [describe key findings].
-```
-
-## Need More?
-
-- **Custom analysis**: Modify `visualization.R` or `reporting.R`
-- **Additional metrics**: Add to `model_comparison.R`
-- **Different priors**: Edit model files and re-run
-- **Parameter recovery**: Run `parameter_recovery.R` and visualize
-
-## Troubleshooting
-
-**Issue**: Figures look wrong
-
-- Check that fitted models loaded correctly
-- Verify parameter names match expectations
-- Try regenerating with `generate_paper_outputs.R`
-
-**Issue**: Tables have missing values
-
-- Check convergence (some parameters may not have converged)
-- Verify all models completed successfully
-- Check for NA values in fitted models
-
-**Issue**: Want different figure format
-
-- Modify output_file extension (.png, .pdf, .svg)
-- Adjust width/height in visualization functions
-- Export from R manually with custom settings
-
----
-
-**Ready for your paper?** Run `generate_paper_outputs.R` after fitting completes!
+- [ ] All models converged (R-hat < 1.1)
+- [ ] Parameter recovery validated (r > 0.8)
+- [ ] Group comparisons computed
+- [ ] Figures generated at publication quality
+- [ ] Prior justifications documented
+- [ ] MCMC settings reported in methods
+- [ ] Data and code availability statement

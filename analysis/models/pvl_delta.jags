@@ -1,33 +1,48 @@
 model {
   # PVL-Delta Model for Iowa Gambling Task
-  # Prospect-Valence Learning with Delta-Rule updating
-  # Parameters: A (learning rate), alpha (outcome sensitivity),
-  #             cons (choice consistency), lambda (loss aversion)
+  # Prospect-Valence Learning with Delta-rule updating (Ahn et al., 2008)
+  #
+  # Key features:
+  # - A: Learning rate [0, 1] - controls speed of expected value updating
+  # - alpha: Outcome sensitivity [0, 2] - power function exponent for utility
+  # - cons: Choice consistency [0, 5] - inverse temperature for softmax
+  # - lambda: Loss aversion [0, 10] - multiplier for losses relative to gains
+  #
+  # Learning rule: EV[t+1] = EV[t] + A * (utility[t] - EV[t])
+  # Utility: u(x) = x^alpha if x >= 0, else -lambda * |x|^alpha
+  # Choice: softmax with temperature parameter cons
+  #
+  # This v2 version uses improved numerical stability with bounded parameters
 
-  # Hyperpriors (group-level distributions)
-  mu_A ~ dunif(0, 1)
-  mu_alpha ~ dunif(0, 2)
-  mu_cons ~ dunif(0, 5)
-  mu_lambda ~ dunif(0, 10)
+  # Hyperpriors (weakly informative based on IGT literature)
+  # A (learning rate): Centered at 0.5, allowing full range [0,1]
+  mu_A ~ dbeta(2, 2)
 
-  sigma_A ~ dunif(0, 1)
-  sigma_alpha ~ dunif(0, 2)
-  sigma_cons ~ dunif(0, 5)
-  sigma_lambda ~ dunif(0, 10)
+  # alpha (outcome sensitivity): Typically 0.5-1.0 in IGT studies, allow [0,2]
+  # dnorm(mean, precision) where precision = 1/variance
+  # Using precision=4 -> SD=0.5, covers typical range while allowing extremes
+  mu_alpha ~ dnorm(0.7, 4)T(0, 2)
+
+  # cons (choice consistency): Typically 0.5-2.0, allow up to 5
+  # Using precision=2 -> SD=0.71
+  mu_cons ~ dnorm(1, 2)T(0, 5)
+
+  # lambda (loss aversion): Typically 1.0-3.0, allow [0,10]
+  # Using precision=1 -> SD=1
+  mu_lambda ~ dnorm(2, 1)T(0, 10)
+
+  # Group-level variability (half-Cauchy approximated with uniform)
+  sigma_A ~ dunif(0, 0.5)
+  sigma_alpha ~ dunif(0, 0.5)
+  sigma_cons ~ dunif(0, 1.5)
+  sigma_lambda ~ dunif(0, 2)
 
   # Subject-level parameters
   for (s in 1:N) {
-    # Raw parameters (unbounded)
-    A_raw[s] ~ dnorm(mu_A, pow(sigma_A, -2))
-    alpha_raw[s] ~ dnorm(mu_alpha, pow(sigma_alpha, -2))
-    cons_raw[s] ~ dnorm(mu_cons, pow(sigma_cons, -2))
-    lambda_raw[s] ~ dnorm(mu_lambda, pow(sigma_lambda, -2))
-
-    # Constrained parameters
-    A[s] <- phi(A_raw[s])           # learning rate: [0, 1]
-    alpha[s] <- exp(alpha_raw[s])   # outcome sensitivity: (0, inf), typically (0, 2]
-    cons[s] <- exp(cons_raw[s])     # choice consistency: (0, inf), typically (0, 5]
-    lambda[s] <- exp(lambda_raw[s]) # loss aversion: (0, inf), typically (0, 10]
+    A[s] ~ dbeta(mu_A * (1/sigma_A^2 - 1), (1-mu_A) * (1/sigma_A^2 - 1))T(0.01, 0.99)
+    alpha[s] ~ dnorm(mu_alpha, 1/sigma_alpha^2)T(0.01, 2)
+    cons[s] ~ dnorm(mu_cons, 1/sigma_cons^2)T(0.01, 5)
+    lambda[s] ~ dnorm(mu_lambda, 1/sigma_lambda^2)T(0.01, 10)
   }
 
   # Trial-by-trial updates
@@ -38,34 +53,30 @@ model {
     }
 
     for (t in 1:Tsubj[s]) {
-      # Sensitivity parameter (compute once per trial)
-      sens[s, t] <- pow(3, cons[s]) - 1
-
-      # Compute choice probabilities with softmax
+      # Softmax choice probabilities
       for (d in 1:4) {
-        # Exp-utility for each deck
-        exp_util[s, t, d] <- exp(sens[s, t] * ev[s, t, d])
+        v[s, t, d] <- cons[s] * ev[s, t, d]
+        exp_v[s, t, d] <- exp(v[s, t, d])
       }
 
-      # Softmax probabilities
       for (d in 1:4) {
-        p_choice[s, t, d] <- exp_util[s, t, d] / sum(exp_util[s, t, ])
+        p[s, t, d] <- exp_v[s, t, d] / sum(exp_v[s, t, ])
       }
 
-      # Observed choice likelihood
-      choice[s, t] ~ dcat(p_choice[s, t, ])
+      # Observed choice
+      choice[s, t] ~ dcat(p[s, t, ])
 
-      # Utility of observed outcome
-      # Add small constant to avoid pow(0, alpha) issues
+      # Compute utility
+      abs_outcome[s, t] <- abs(outcome[s, t]) + 0.001
+
       util[s, t] <- ifelse(outcome[s, t] >= 0,
-                           pow(abs(outcome[s, t]) + 0.001, alpha[s]),
-                           -lambda[s] * pow(abs(outcome[s, t]) + 0.001, alpha[s]))
+                           pow(abs_outcome[s, t], alpha[s]),
+                           -lambda[s] * pow(abs_outcome[s, t], alpha[s]))
 
-      # Update expected value for chosen deck (delta rule)
+      # Update chosen deck
       for (d in 1:4) {
-        ev[s, t+1, d] <- ifelse(d == choice[s, t],
-                                ev[s, t, d] + A[s] * (util[s, t] - ev[s, t, d]),
-                                ev[s, t, d])
+        ev[s, t+1, d] <- equals(d, choice[s, t]) * (ev[s, t, d] + A[s] * (util[s, t] - ev[s, t, d])) +
+                         (1 - equals(d, choice[s, t])) * ev[s, t, d]
       }
     }
   }

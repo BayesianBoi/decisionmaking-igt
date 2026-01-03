@@ -4,101 +4,137 @@ This directory contains the complete fitting and validation pipeline for IGT mod
 
 ## Core Scripts
 
-**fit_models.R**
-Main pipeline that fits all three models sequentially. Includes data caching and automatic resume capability. Models are fit with 4 chains, 2000 adaptation iterations, 2000 burn-in, and 5000 sampling iterations.
+### Fitting Scripts (in `scripts/`)
 
-**fit_single_model.R**
-Fit individual models. Useful for parallel execution across separate processes or debugging specific models.
+**fit_eef_clinical.R**
+Fits the EEF (Exploitation-Exploration with Forgetting) model to clinical populations. This is the primary model for testing memory decay in substance users.
 
-Usage:
-```bash
-Rscript analysis/fit_single_model.R pvl_delta
-Rscript analysis/fit_single_model.R vse
-Rscript analysis/fit_single_model.R orl
-```
+**fit_pvl_delta.R**
+Fits the PVL-Delta model as a baseline for model comparison.
 
-**quick_test.R**
-Runs a quick validation using Ahn2014_HC data (48 subjects). Verifies that models compile and basic convergence is achieved. Takes about 2 minutes.
+**fit_vse.R**
+Fits the VSE (Value + Sequential Exploration) model for model comparison.
+
+**parameter_recovery_eef.R**
+Tests parameter identifiability by simulating data with known parameters and fitting the model.
+
+**compare_groups.R**
+Compares forgetting rates (lambda) between clinical groups (HC vs substance users).
+
+**compare_models.R**
+Compares convergence diagnostics and parameter estimates across models.
+
+**create_figures.R**
+Generates publication-ready figures for the paper.
 
 ## JAGS Models
 
-Located in `models/` directory. Each model has theoretical documentation in its header.
+Located in `models/` directory.
 
-**pvl_delta_v2.jags**
+**eef_clinical.jags**
+- 4 parameters: theta, lambda_forget, phi, cons
+- Key innovation: Memory decay applied to both exploitation and exploration
+- Uses first-choice priors (w_ini) from data
+
+**pvl_delta.jags**
 - 4 parameters: A (learning rate), alpha (outcome sensitivity), cons (consistency), lambda (loss aversion)
-- Uses delta-rule updating: EV[t+1] = EV[t] + A * (u[t] - EV[t])
-- Utility function: u(x) = x^alpha for gains, -lambda * |x|^alpha for losses
+- Uses delta-rule updating
+- Baseline model without forgetting mechanism
 
-**vse_v2.jags**
+**vse.jags**
 - 8 parameters: PVL-Delta parameters plus epP, epN (perseverance boosts), K (decay), w (weight)
-- Combines expected value learning with sequential exploration tendencies
-- Choice based on weighted average: w * EV + (1-w) * perseverance
+- Combines value learning with sequential exploration tendencies
 
-**orl_v2.jags**
+**orl.jags**
 - 5 parameters: Arew, Apun (learning rates), K (decay), betaF, betaP (weights)
-- Tracks expected value (EV) and expected frequency (EF) separately
-- Includes fictive updating for unchosen options
+- Tracks expected value and expected frequency separately
 
 ## Utility Functions
 
 **load_data.R**
-Harmonizes data from three sources into consistent format. Creates unique subject IDs across studies and validates choice ranges.
+Loads and harmonizes IGT data from Ahn 2014, Fridberg 2010, and Steingroever 2014 studies.
 
 **prepare_jags_data.R**
-Converts harmonized data into JAGS-compatible format with proper matrix dimensions and variable-length trial handling.
+Converts harmonized data into JAGS-compatible format for PVL-Delta, VSE, and ORL models.
+
+**prepare_eef_data.R**
+Prepares data specifically for EEF model with first-choice priors calculation and group structure.
 
 **diagnostics.R**
-Computes convergence diagnostics (R-hat, ESS), generates trace plots, and creates diagnostic reports for all fitted models.
+Computes convergence diagnostics (R-hat, ESS), generates trace plots.
 
 **ppc.R**
-Posterior predictive checks. Simulates data from fitted models and compares to observed choice proportions.
+Posterior predictive checks.
 
 **parameter_recovery.R**
-Tests parameter identifiability by fitting models to simulated data with known parameters.
+Parameter recovery utility functions.
 
 **model_comparison.R**
-Computes model comparison metrics (DIC, WAIC) for selecting best-fitting model.
+Model comparison metrics (DIC, WAIC).
 
 **visualization.R**
-Creates publication-quality figures including trace plots and posterior densities.
+Creates publication-quality figures.
 
 **reporting.R**
-Generates APA-formatted tables and result summaries for manuscripts.
+Generates APA-formatted tables.
 
 ## Workflow
 
-1. Data loading and validation
-2. Model fitting (sequential or parallel)
-3. Convergence diagnostics
-4. Posterior predictive checks
-5. Parameter recovery (optional)
-6. Model comparison
-7. Publication outputs
+1. **Parameter Recovery** (optional but recommended)
+   ```bash
+   Rscript analysis/scripts/parameter_recovery_eef.R
+   ```
+
+2. **Fit Models**
+   ```bash
+   Rscript analysis/scripts/fit_eef_clinical.R
+   Rscript analysis/scripts/fit_pvl_delta.R
+   Rscript analysis/scripts/fit_vse.R
+   ```
+
+3. **Group Comparisons**
+   ```bash
+   Rscript analysis/scripts/compare_groups.R
+   ```
+
+4. **Model Comparison**
+   ```bash
+   Rscript analysis/scripts/compare_models.R
+   ```
+
+5. **Generate Figures**
+   ```bash
+   Rscript analysis/scripts/create_figures.R
+   ```
 
 ## Outputs
 
-Results are saved in `outputs/` directory:
-- `cached_data.rds` - Preprocessed data
-- `pvl_delta_fit.rds`, `vse_fit.rds`, `orl_fit.rds` - Fitted models
-- `*_trace_plots.pdf` - MCMC diagnostics
-- `all_diagnostics.rds` - Convergence metrics
-- `ppc_results.rds` - Posterior predictive checks
+Results are saved in `results/` directory:
+- `results/eef_clinical/` - EEF model outputs
+- `results/pvl_delta/` - PVL-Delta model outputs
+- `results/vse/` - VSE model outputs
+- `results/group_comparison/` - Group comparison results
+- `results/model_comparison/` - Model comparison results
+- `results/parameter_recovery/` - Parameter recovery results
+- `results/figures/` - Publication figures
 
-## Configuration
+## MCMC Configuration
 
-Default MCMC settings in `fit_models.R`:
+Default MCMC settings:
 - 4 chains
-- 2000 adaptation iterations
-- 2000 burn-in iterations
-- 5000 sampling iterations
-- Parallel execution enabled
+- 5000 adaptation iterations
+- 10000 burn-in iterations
+- 20000 sampling iterations
+- Thinning = 2
 
-Adjust these based on your computational resources and convergence requirements.
+Estimated runtime: 4-8 hours per model.
+
+## Requirements
+
+- R >= 4.0
+- JAGS >= 4.3
+- R packages: rjags, coda, ggplot2, loo (optional)
 
 ## Troubleshooting
 
 See `TROUBLESHOOTING.md` for common issues and solutions.
-
-For parallel fitting on high-core systems, see `PARALLEL_FITTING.md`.
-
-For preparing publication outputs, see `PAPER_WORKFLOW.md`.
