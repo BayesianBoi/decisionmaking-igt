@@ -88,10 +88,12 @@ if (!file.exists(model_file)) {
 
 start_time <- Sys.time()
 
-# Function to run one chain
-run_chain <- function(chain_id, model_file, jags_data, config) {
-  library(rjags)
-  library(coda)
+# Detect available cores
+n_cores <- min(config$n_chains, detectCores() - 1)
+message(sprintf("Running %d chains on %d cores...", config$n_chains, n_cores))
+
+# Run chains in parallel using mclapply (simpler than makeCluster)
+chain_results <- mclapply(1:config$n_chains, function(chain_id) {
   
   set.seed(chain_id * 12345)
   
@@ -113,21 +115,8 @@ run_chain <- function(chain_id, model_file, jags_data, config) {
   )
   
   return(samples[[1]])
-}
-
-# Detect available cores
-n_cores <- min(config$n_chains, detectCores() - 1)
-message(sprintf("Running %d chains on %d cores...", config$n_chains, n_cores))
-
-# Run chains in parallel
-cl <- makeCluster(n_cores)
-clusterExport(cl, c("model_file", "jags_data", "config"))
-
-chain_results <- parLapply(cl, 1:config$n_chains, function(i) {
-  run_chain(i, model_file, jags_data, config)
-})
-
-stopCluster(cl)
+  
+}, mc.cores = n_cores)
 
 # Combine into mcmc.list
 samples <- mcmc.list(chain_results)
