@@ -1,142 +1,118 @@
-# Fit EEF model to clinical populations (Ahn 2014 + Fridberg 2010)
-# Research Question: Do substance users show elevated forgetting rates (lambda)?
+# ===========================================================================
+# Fit EEF Model to Clinical Populations
+# ===========================================================================
 #
-# Run: Rscript analysis/scripts/fit_eef_clinical.R
+# Fits the Exploitation-Exploration with Forgetting (EEF) model to Iowa 
+# Gambling Task data from substance use disorder populations.
+#
+# Reference: Yang, X., et al. (2025). Exploitation and Exploration with 
+#            Forgetting. Frontiers in Psychology.
+#
+# Data: Ahn et al. (2014), Fridberg et al. (2010)
+#
+# Usage: Rscript analysis/scripts/fit_eef_clinical.R
+#
+# ===========================================================================
 
 library(rjags)
 library(coda)
 
-# Source utility functions
 source("analysis/utils/load_data.R")
 source("analysis/utils/prepare_eef_data.R")
 
-#==============================================================================
-# CONFIGURATION
-#==============================================================================
+# ===========================================================================
+# Configuration
+# ===========================================================================
 
-# MCMC Settings - CRITICAL DECISIONS
-# -----------------------------------
-# Based on hierarchical Bayesian literature (Gelman et al., 2013):
-# - Small N (N=38-48 per group) requires MORE iterations, not fewer
-# - 4 parameters per subject = moderate complexity
-# - Group-level parameters require adequate exploration
-#
-# RATIONALE for these settings:
-# 1. n_adapt = 5000: Let JAGS tune sampler for 5K iterations
-#    - Standard is 1K, but we have group structure (need more)
-# 2. n_burnin = 10000: Discard first 10K samples
-#    - Ensures convergence from arbitrary starting points
-#    - Hierarchical models need longer burn-in
-# 3. n_iter = 20000: Collect 20K samples per chain
-#    - Yields 80K total samples (4 chains)
-#    - Effective sample size should be >10K for stable inference
-# 4. n_chains = 4: Standard for MCMC diagnostics
-#    - Allows Gelman-Rubin R-hat convergence assessment
-# 5. thin = 2: Store every 2nd sample
-#    - Reduces autocorrelation
-#    - Final: 40K samples (80K / 2)
-#
-# TOTAL RUNTIME ESTIMATE: 4-8 hours on M1 Mac (173 subjects, 100 trials each)
+# MCMC settings based on Gelman et al. (2013) recommendations for 
+# hierarchical Bayesian models with small group sizes (N=38-48 per group)
 
 config <- list(
-  # MCMC settings
-  n_adapt = 5000,      # Adaptation phase
-  n_burnin = 10000,    # Burn-in samples (discarded)
-  n_iter = 20000,      # Sampling iterations per chain
-  n_chains = 4,        # Number of chains
-  thin = 2,            # Thinning interval
-
-  # Convergence criteria
-  rhat_threshold = 1.1,   # Gelman-Rubin R-hat (< 1.1 = good convergence)
-  n_eff_min = 1000,       # Minimum effective sample size per parameter
-
-  # Monitoring
+  n_adapt = 5000,       # Adaptation iterations for sampler tuning
+  n_burnin = 10000,     # Burn-in iterations (discarded)
+  n_iter = 20000,       # Sampling iterations per chain
+  n_chains = 4,         # Number of parallel chains
+  thin = 2,             # Thinning interval to reduce autocorrelation
+  
+  rhat_threshold = 1.1, # Gelman-Rubin convergence criterion
+  n_eff_min = 1000,     # Minimum effective sample size
+  
   parameters_to_monitor = c(
-    # Group-level means (primary research focus)
-    "mu_theta",           # Outcome sensitivity
-    "mu_lambda_forget",   # FORGETTING RATE (key parameter!)
-    "mu_phi",             # Exploration incentive
-    "mu_cons",            # Choice consistency
-
-    # Group-level variability
+    # Group-level means
+    "mu_theta",
+    "mu_lambda_forget",
+    "mu_phi",
+    "mu_cons",
+    # Group-level standard deviations
     "sigma_theta",
     "sigma_lambda_forget",
     "sigma_phi",
     "sigma_cons",
-
-    # Subject-level parameters (for individual differences & diagnostics)
+    # Subject-level parameters
     "theta",
-    "lambda_forget",      # FORGETTING RATE (individual-level)
+    "lambda_forget",
     "phi",
     "cons"
   )
 )
 
-# Output settings
 output_dir <- "results/eef_clinical"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-#==============================================================================
-# LOAD AND PREPARE DATA
-#==============================================================================
+# ===========================================================================
+# Load and Prepare Data
+# ===========================================================================
 
-message("=== LOADING DATA ===\n")
+message("Loading data...")
 
-# Load all IGT data
 dat_all <- load_all_igt_data()
 
-# Filter to clinical populations only
-# Ahn 2014: HC, Amph, Heroin
-# Fridberg 2010: HC, Cannabis
+# Filter to clinical populations
 clinical_studies <- c("Ahn2014_HC", "Ahn2014_Amph", "Ahn2014_Hero",
                       "Fridberg2010_HC", "Fridberg2010_Cbis")
 
 dat_clinical <- dat_all[dat_all$study %in% clinical_studies, ]
 
-# Create group variable (collapse HC groups, separate substance types)
+# Create group variable
 dat_clinical$group <- dat_clinical$study
 dat_clinical$group[dat_clinical$group %in% c("Ahn2014_HC", "Fridberg2010_HC")] <- "HC"
 dat_clinical$group[dat_clinical$group == "Ahn2014_Amph"] <- "Amphetamine"
 dat_clinical$group[dat_clinical$group == "Ahn2014_Hero"] <- "Heroin"
 dat_clinical$group[dat_clinical$group == "Fridberg2010_Cbis"] <- "Cannabis"
 
-message(sprintf("Total subjects: %d", length(unique(dat_clinical$subj_unique))))
-message(sprintf("Total trials: %d\n", nrow(dat_clinical)))
+message(sprintf("Subjects: %d", length(unique(dat_clinical$subj_unique))))
+message(sprintf("Trials: %d", nrow(dat_clinical)))
 
-# Check first-choice patterns by group
-message("=== FIRST-CHOICE ANALYSIS ===\n")
+# Analyze first-choice patterns by group
+message("\nFirst-choice analysis:")
 first_choice_props <- compare_first_choices_by_group(dat_clinical, group_var = "group")
 
 # Prepare JAGS data with group structure
-message("\n=== PREPARING JAGS DATA ===\n")
+message("\nPreparing JAGS data...")
 jags_data <- prepare_eef_jags_data(
   dat = dat_clinical,
   group_var = "group",
   reference_group = "HC"
 )
 
-# Validate data
 check_eef_jags_data(jags_data)
 
-# Save prepared data
 saveRDS(jags_data, file.path(output_dir, "jags_data.rds"))
-message(sprintf("\nJAGS data saved to: %s\n", file.path(output_dir, "jags_data.rds")))
+message(sprintf("JAGS data saved: %s", file.path(output_dir, "jags_data.rds")))
 
-#==============================================================================
-# FIT MODEL
-#==============================================================================
+# ===========================================================================
+# Fit Model
+# ===========================================================================
 
-message("=== FITTING EEF MODEL ===\n")
-message("This will take several hours. Progress will be displayed.\n")
+message("\nFitting EEF model...")
+message("Estimated runtime: 4-8 hours")
 
-# Load JAGS model
 model_file <- "analysis/models/eef_clinical.jags"
 if (!file.exists(model_file)) {
   stop(sprintf("Model file not found: %s", model_file))
 }
 
-# Initialize JAGS model
-message(sprintf("Initializing model with %d chains...", config$n_chains))
+message(sprintf("Initializing %d chains...", config$n_chains))
 start_time <- Sys.time()
 
 jags_model <- jags.model(
@@ -144,22 +120,19 @@ jags_model <- jags.model(
   data = jags_data,
   n.chains = config$n_chains,
   n.adapt = config$n_adapt,
-  quiet = FALSE  # Show adaptation progress
+  quiet = FALSE
 )
 
 adapt_time <- as.numeric(difftime(Sys.time(), start_time, units = "mins"))
-message(sprintf("Adaptation complete (%.1f minutes)", adapt_time))
+message(sprintf("Adaptation complete (%.1f min)", adapt_time))
 
-# Burn-in
-message(sprintf("\nBurn-in: %d iterations...", config$n_burnin))
+message(sprintf("Burn-in: %d iterations...", config$n_burnin))
 update(jags_model, n.iter = config$n_burnin, progress.bar = "text")
 
 burnin_time <- as.numeric(difftime(Sys.time(), start_time, units = "mins")) - adapt_time
-message(sprintf("Burn-in complete (%.1f minutes)", burnin_time))
+message(sprintf("Burn-in complete (%.1f min)", burnin_time))
 
-# Sampling
-message(sprintf("\nSampling: %d iterations x %d chains (thin=%d)...",
-                config$n_iter, config$n_chains, config$thin))
+message(sprintf("Sampling: %d iterations x %d chains...", config$n_iter, config$n_chains))
 
 samples <- coda.samples(
   model = jags_model,
@@ -170,52 +143,34 @@ samples <- coda.samples(
 )
 
 total_time <- as.numeric(difftime(Sys.time(), start_time, units = "mins"))
-message(sprintf("\nSampling complete!"))
-message(sprintf("Total runtime: %.1f minutes (%.1f hours)", total_time, total_time/60))
+message(sprintf("Sampling complete (%.1f min total)", total_time))
 
-# Save raw samples
 saveRDS(samples, file.path(output_dir, "mcmc_samples.rds"))
-message(sprintf("MCMC samples saved to: %s", file.path(output_dir, "mcmc_samples.rds")))
 
-#==============================================================================
-# DIAGNOSTICS
-#==============================================================================
+# ===========================================================================
+# Convergence Diagnostics
+# ===========================================================================
 
-message("\n=== CONVERGENCE DIAGNOSTICS ===\n")
+message("\nConvergence diagnostics:")
 
-# Gelman-Rubin R-hat
 rhat <- gelman.diag(samples, multivariate = FALSE)
 rhat_values <- rhat$psrf[, "Point est."]
 
-message("R-hat statistics (want < 1.1):")
-message(sprintf("  Range: [%.3f, %.3f]", min(rhat_values), max(rhat_values)))
-message(sprintf("  Median: %.3f", median(rhat_values)))
+message(sprintf("R-hat range: [%.3f, %.3f]", min(rhat_values), max(rhat_values)))
+message(sprintf("R-hat median: %.3f", median(rhat_values)))
 
 n_converged <- sum(rhat_values < config$rhat_threshold)
 n_total <- length(rhat_values)
-message(sprintf("  Converged: %d/%d parameters (%.1f%%)",
-                n_converged, n_total, 100*n_converged/n_total))
+message(sprintf("Converged: %d/%d (%.1f%%)", n_converged, n_total, 100*n_converged/n_total))
 
 if (n_converged < n_total) {
-  warning(sprintf("%d parameters did not converge (R-hat >= %.2f)",
-                  n_total - n_converged, config$rhat_threshold))
-  # Show worst offenders
-  worst_idx <- order(rhat_values, decreasing = TRUE)[1:min(10, n_total)]
-  message("\nWorst R-hat values:")
-  print(sort(rhat_values[worst_idx], decreasing = TRUE))
+  warning(sprintf("%d parameters did not converge", n_total - n_converged))
 }
 
-# Effective sample size
 eff_size <- effectiveSize(samples)
-message(sprintf("\nEffective sample sizes:"))
-message(sprintf("  Range: [%.0f, %.0f]", min(eff_size), max(eff_size)))
-message(sprintf("  Median: %.0f", median(eff_size)))
+message(sprintf("ESS range: [%.0f, %.0f]", min(eff_size), max(eff_size)))
+message(sprintf("ESS median: %.0f", median(eff_size)))
 
-n_adequate <- sum(eff_size >= config$n_eff_min)
-message(sprintf("  Adequate (>=%d): %d/%d parameters (%.1f%%)",
-                config$n_eff_min, n_adequate, n_total, 100*n_adequate/n_total))
-
-# Save diagnostics
 diagnostics <- list(
   rhat = rhat,
   eff_size = eff_size,
@@ -225,42 +180,31 @@ diagnostics <- list(
 )
 saveRDS(diagnostics, file.path(output_dir, "diagnostics.rds"))
 
-#==============================================================================
-# PARAMETER SUMMARIES
-#==============================================================================
+# ===========================================================================
+# Parameter Summaries
+# ===========================================================================
 
-message("\n=== PARAMETER ESTIMATES ===\n")
+message("\nParameter estimates:")
 
-# Extract posterior means
 posterior_summary <- summary(samples)
 param_means <- posterior_summary$statistics[, "Mean"]
 param_sds <- posterior_summary$statistics[, "SD"]
 
-# Focus on group-level parameters
 group_params <- c("mu_theta", "mu_lambda_forget", "mu_phi", "mu_cons")
-message("Group-level means (posterior mean ± SD):")
 for (p in group_params) {
   if (p %in% names(param_means)) {
-    message(sprintf("  %s: %.3f ± %.3f", p, param_means[p], param_sds[p]))
+    message(sprintf("  %s: %.3f (SD=%.3f)", p, param_means[p], param_sds[p]))
   }
 }
 
-# KEY RESULT: Forgetting rate
-lambda_mean <- param_means["mu_lambda_forget"]
-lambda_sd <- param_sds["mu_lambda_forget"]
-message(sprintf("\n*** KEY FINDING: Population forgetting rate = %.3f ± %.3f ***",
-                lambda_mean, lambda_sd))
-
-# Save summaries
 saveRDS(posterior_summary, file.path(output_dir, "parameter_summary.rds"))
 
-#==============================================================================
-# VISUALIZATIONS
-#==============================================================================
+# ===========================================================================
+# Diagnostic Plots
+# ===========================================================================
 
-message("\n=== CREATING DIAGNOSTIC PLOTS ===\n")
+message("\nGenerating diagnostic plots...")
 
-# Trace plots for group-level parameters
 pdf(file.path(output_dir, "trace_plots.pdf"), width = 10, height = 8)
 par(mfrow = c(2, 2))
 for (p in group_params) {
@@ -268,7 +212,6 @@ for (p in group_params) {
 }
 dev.off()
 
-# Density plots
 pdf(file.path(output_dir, "density_plots.pdf"), width = 10, height = 8)
 par(mfrow = c(2, 2))
 for (p in group_params) {
@@ -276,22 +219,12 @@ for (p in group_params) {
 }
 dev.off()
 
-message(sprintf("Diagnostic plots saved to: %s", output_dir))
+message(sprintf("Plots saved to: %s", output_dir))
 
-#==============================================================================
-# DONE
-#==============================================================================
+# ===========================================================================
+# Summary
+# ===========================================================================
 
-message("\n=== FITTING COMPLETE ===\n")
-message(sprintf("Output directory: %s", output_dir))
-message("Files created:")
-message("  - jags_data.rds (prepared data)")
-message("  - mcmc_samples.rds (posterior samples)")
-message("  - parameter_summary.rds (posterior statistics)")
-message("  - diagnostics.rds (convergence checks)")
-message("  - trace_plots.pdf (MCMC trace plots)")
-message("  - density_plots.pdf (posterior densities)")
-message("\nNext steps:")
-message("  1. Check diagnostics (R-hat, effective sample size)")
-message("  2. Run group comparisons (analysis/scripts/compare_groups.R)")
-message("  3. Run model comparison vs PVL-Delta and VSE")
+message("\nFitting complete.")
+message(sprintf("Output: %s", output_dir))
+message("Files: jags_data.rds, mcmc_samples.rds, parameter_summary.rds, diagnostics.rds")
