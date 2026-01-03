@@ -1,10 +1,6 @@
 # ===========================================================================
-# Fit PVL-Delta Model to Clinical Populations
+# Fit PVL-Delta Model to Clinical Populations (Parallel Chains)
 # ===========================================================================
-#
-# Fits the Prospect Valence Learning model with delta-rule updating to Iowa 
-# Gambling Task data. This serves as a baseline comparison model that assumes
-# perfect memory retention (no forgetting mechanism).
 #
 # Reference: Ahn, W.Y., Busemeyer, J.R., & Wagenmakers, E.J. (2008).
 #            Comparison of decision learning models. Cognitive Science.
@@ -15,6 +11,7 @@
 
 library(rjags)
 library(coda)
+library(parallel)
 
 source("analysis/utils/load_data.R")
 source("analysis/utils/prepare_jags_data.R")
@@ -66,45 +63,64 @@ check_jags_data(jags_data)
 saveRDS(jags_data, file.path(output_dir, "jags_data.rds"))
 
 # ===========================================================================
-# Fit Model
+# Fit Model with Parallel Chains
 # ===========================================================================
 
-message("\nFitting PVL-Delta model...")
+message("\nFitting PVL-Delta model with parallel chains...")
 
 model_file <- "analysis/models/pvl_delta.jags"
 if (!file.exists(model_file)) {
   stop(sprintf("Model file not found: %s", model_file))
 }
 
-message(sprintf("Initializing %d chains...", config$n_chains))
 start_time <- Sys.time()
 
-jags_model <- jags.model(
-  file = model_file,
-  data = jags_data,
-  n.chains = config$n_chains,
-  n.adapt = config$n_adapt,
-  quiet = FALSE
-)
+# Function to run one chain
+run_chain <- function(chain_id, model_file, jags_data, config) {
+  library(rjags)
+  library(coda)
+  
+  set.seed(chain_id * 12345)
+  
+  model <- jags.model(
+    file = model_file,
+    data = jags_data,
+    n.chains = 1,
+    n.adapt = config$n_adapt,
+    quiet = TRUE
+  )
+  
+  update(model, n.iter = config$n_burnin)
+  
+  samples <- coda.samples(
+    model = model,
+    variable.names = config$parameters_to_monitor,
+    n.iter = config$n_iter,
+    thin = config$thin
+  )
+  
+  return(samples[[1]])
+}
 
-adapt_time <- as.numeric(difftime(Sys.time(), start_time, units = "mins"))
-message(sprintf("Adaptation complete (%.1f min)", adapt_time))
+# Detect available cores
+n_cores <- min(config$n_chains, detectCores() - 1)
+message(sprintf("Running %d chains on %d cores...", config$n_chains, n_cores))
 
-message(sprintf("Burn-in: %d iterations...", config$n_burnin))
-update(jags_model, n.iter = config$n_burnin, progress.bar = "text")
+# Run chains in parallel
+cl <- makeCluster(n_cores)
+clusterExport(cl, c("model_file", "jags_data", "config"))
 
-message(sprintf("Sampling: %d iterations x %d chains...", config$n_iter, config$n_chains))
+chain_results <- parLapply(cl, 1:config$n_chains, function(i) {
+  run_chain(i, model_file, jags_data, config)
+})
 
-samples <- coda.samples(
-  model = jags_model,
-  variable.names = config$parameters_to_monitor,
-  n.iter = config$n_iter,
-  thin = config$thin,
-  progress.bar = "text"
-)
+stopCluster(cl)
+
+# Combine into mcmc.list
+samples <- mcmc.list(chain_results)
 
 total_time <- as.numeric(difftime(Sys.time(), start_time, units = "mins"))
-message(sprintf("Sampling complete (%.1f min total)", total_time))
+message(sprintf("Sampling complete (%.1f min)", total_time))
 
 saveRDS(samples, file.path(output_dir, "mcmc_samples.rds"))
 
@@ -175,5 +191,5 @@ for (p in group_params) {
 }
 dev.off()
 
-message(sprintf("Plots saved to: %s", output_dir))
-message("\nFitting complete.")
+message(sprintf("Output saved to: %s", output_dir))
+message("Fitting complete.")
