@@ -1,10 +1,9 @@
-# Compare PVL-Delta, VSE, and EEF models using WAIC and LOO-CV
+# Compare PVL-Delta, ORL, and EEF models
 # Determines which model best accounts for the clinical IGT data
 #
 # Run: Rscript analysis/scripts/compare_models.R
 
 library(coda)
-library(loo)
 
 #==============================================================================
 # CONFIGURATION
@@ -13,7 +12,7 @@ library(loo)
 # Model directories
 model_dirs <- c(
   pvl_delta = "results/pvl_delta",
-  vse = "results/vse",
+  orl = "results/orl",
   eef = "results/eef_clinical"
 )
 

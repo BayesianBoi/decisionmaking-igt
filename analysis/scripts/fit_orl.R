@@ -1,11 +1,11 @@
 # ===========================================================================
-# Fit VSE Model to Clinical Populations (Parallel Chains)
+# Fit ORL Model to Clinical Populations (Parallel Chains)
 # ===========================================================================
 #
-# Reference: Worthy, D.A., Pang, B., & Byrne, K.A. (2013). Decomposing the
-#            roles of perseveration and expected value. Frontiers in Psychology.
+# Reference: Haines, N., Vassileva, J., & Ahn, W.Y. (2018). The Outcome-
+#            Representation Learning model. Cognitive Science.
 #
-# Usage: Rscript analysis/scripts/fit_vse.R
+# Usage: Rscript analysis/scripts/fit_orl.R
 #
 # ===========================================================================
 
@@ -31,16 +31,13 @@ config <- list(
   n_eff_min = 1000,
   
   parameters_to_monitor = c(
-    "mu_A", "mu_alpha", "mu_cons", "mu_lambda",
-    "mu_epP", "mu_epN", "mu_K", "mu_w",
-    "sigma_A", "sigma_alpha", "sigma_cons", "sigma_lambda",
-    "sigma_epP", "sigma_epN", "sigma_K", "sigma_w",
-    "A", "alpha", "cons", "lambda",
-    "epP", "epN", "K", "w"
+    "mu_Arew", "mu_Apun", "mu_K", "mu_betaF", "mu_betaP",
+    "sigma_Arew", "sigma_Apun", "sigma_K", "sigma_betaF", "sigma_betaP",
+    "Arew", "Apun", "K", "betaF", "betaP"
   )
 )
 
-output_dir <- "results/vse"
+output_dir <- "results/orl"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 # ===========================================================================
@@ -69,9 +66,9 @@ saveRDS(jags_data, file.path(output_dir, "jags_data.rds"))
 # Fit Model with Parallel Chains
 # ===========================================================================
 
-message("\nFitting VSE model with parallel chains...")
+message("\nFitting ORL model with parallel chains...")
 
-model_file <- "analysis/models/vse.jags"
+model_file <- "analysis/models/orl.jags"
 if (!file.exists(model_file)) {
   stop(sprintf("Model file not found: %s", model_file))
 }
@@ -151,8 +148,7 @@ posterior_summary <- summary(samples)
 param_means <- posterior_summary$statistics[, "Mean"]
 param_sds <- posterior_summary$statistics[, "SD"]
 
-group_params <- c("mu_A", "mu_alpha", "mu_cons", "mu_lambda",
-                  "mu_epP", "mu_epN", "mu_K", "mu_w")
+group_params <- c("mu_Arew", "mu_Apun", "mu_K", "mu_betaF", "mu_betaP")
 for (p in group_params) {
   if (p %in% names(param_means)) {
     message(sprintf("  %s: %.3f (SD=%.3f)", p, param_means[p], param_sds[p]))
@@ -168,14 +164,14 @@ saveRDS(posterior_summary, file.path(output_dir, "parameter_summary.rds"))
 message("\nGenerating diagnostic plots...")
 
 pdf(file.path(output_dir, "trace_plots.pdf"), width = 12, height = 10)
-par(mfrow = c(3, 3))
+par(mfrow = c(3, 2))
 for (p in group_params) {
   traceplot(samples[, p], main = p)
 }
 dev.off()
 
 pdf(file.path(output_dir, "density_plots.pdf"), width = 12, height = 10)
-par(mfrow = c(3, 3))
+par(mfrow = c(3, 2))
 for (p in group_params) {
   densplot(samples[, p], main = p)
 }
