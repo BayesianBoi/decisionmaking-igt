@@ -33,7 +33,7 @@ message("=== LOADING EEF MODEL RESULTS ===\n")
 # Load MCMC samples
 samples_file <- file.path(eef_dir, "mcmc_samples.rds")
 if (!file.exists(samples_file)) {
-  stop("EEF model results not found. Run analysis/scripts/fit_eef.R first.")
+  stop("EEF model results not found. Run analysis/scripts/fit_eef_clinical.R first.")
 }
 
 samples <- readRDS(samples_file)
