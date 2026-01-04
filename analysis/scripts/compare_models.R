@@ -4,32 +4,32 @@
 # Run: Rscript analysis/scripts/compare_models.R
 
 library(coda)
+library(loo)
 
-#==============================================================================
+# ==============================================================================
 # CONFIGURATION
-#==============================================================================
+# ==============================================================================
 
 # Model directories
 model_dirs <- c(
   pvl_delta = "results/pvl_delta",
   orl = "results/orl",
-  eef = "results/eef_clinical"
+  eef = "results/eef"
 )
 
 # Output directory
 output_dir <- "results/model_comparison"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-#==============================================================================
+# ==============================================================================
 # HELPER FUNCTIONS
-#==============================================================================
+# ==============================================================================
 
 #' Compute log-likelihood for each observation
 #' @param samples MCMC samples object
 #' @param jags_data Data used for fitting
 #' @return Matrix of log-likelihoods (iterations x observations)
 compute_log_lik <- function(samples, jags_data) {
-
   # Extract choice probabilities from samples
   # For hierarchical models, we need to reconstruct p[s,t,choice[s,t]]
 
@@ -43,8 +43,10 @@ compute_log_lik <- function(samples, jags_data) {
   # Initialize log-likelihood matrix
   log_lik <- matrix(NA, nrow = n_iter, ncol = n_obs)
 
-  message(sprintf("Computing log-likelihood for %d observations across %d iterations",
-                  n_obs, n_iter))
+  message(sprintf(
+    "Computing log-likelihood for %d observations across %d iterations",
+    n_obs, n_iter
+  ))
   message("This may take several minutes...")
 
   # For each iteration, compute log P(choice | parameters)
@@ -61,31 +63,17 @@ compute_log_lik <- function(samples, jags_data) {
   return(NULL)
 }
 
-#' Extract DIC from JAGS model fit
-#' @param model_dir Directory containing model fit
-#' @return DIC value
-get_dic_from_jags <- function(model_dir) {
-  samples_file <- file.path(model_dir, "mcmc_samples.rds")
-
-  if (!file.exists(samples_file)) {
-    stop(sprintf("MCMC samples not found: %s", samples_file))
-  }
-
-  # For now, return NA since DIC needs to be computed during fitting
-  # Users should re-run fits with dic.samples() to get DIC
-  return(NA)
-}
-
-#' Compute model comparison metrics
+#' Compute WAIC and other metrics
 #' @param model_dirs Named vector of model directories
 #' @return Data frame with comparison metrics
-compare_models_simple <- function(model_dirs) {
-
+compare_models_waic <- function(model_dirs) {
   results <- data.frame(
     model = names(model_dirs),
     n_params = NA,
     mean_rhat = NA,
     median_ess = NA,
+    waic = NA,
+    waic_se = NA,
     dic = NA,
     stringsAsFactors = FALSE
   )
@@ -100,7 +88,6 @@ compare_models_simple <- function(model_dirs) {
     diag_file <- file.path(model_dir, "diagnostics.rds")
     if (file.exists(diag_file)) {
       diag <- readRDS(diag_file)
-
       rhat_vals <- diag$rhat$psrf[, "Point est."]
       ess_vals <- diag$eff_size
 
@@ -108,15 +95,49 @@ compare_models_simple <- function(model_dirs) {
       results$median_ess[i] <- median(ess_vals, na.rm = TRUE)
     }
 
-    # Load samples to count parameters
+    # Load samples for WAIC
     samples_file <- file.path(model_dir, "mcmc_samples.rds")
     if (file.exists(samples_file)) {
       samples <- readRDS(samples_file)
-      results$n_params[i] <- ncol(as.matrix(samples))
+      results$n_params[i] <- ncol(as.matrix(samples[, !grepl("^log_lik", colnames(samples[[1]]))]))
+
+      # Extract log-likelihoods
+      message("  Extracting log-likelihoods...")
+      # Combine chains
+      mat <- as.matrix(samples)
+
+      # Identify log_lik columns
+      # Assuming columns are named "log_lik[s,t]"
+      ll_cols <- grep("^log_lik", colnames(mat))
+
+      if (length(ll_cols) > 0) {
+        log_lik_mat <- mat[, ll_cols]
+        message(sprintf("  Computing WAIC for %d obs x %d draws...", ncol(log_lik_mat), nrow(log_lik_mat)))
+
+        # Calculate WAIC
+        # We catch warnings about unstable estimates if they occur
+        waic_res <- tryCatch(
+          {
+            loo::waic(log_lik_mat)
+          },
+          error = function(e) {
+            warning(sprintf("WAIC computation failed for %s: %s", model_name, e$message))
+            return(NULL)
+          }
+        )
+
+        if (!is.null(waic_res)) {
+          results$waic[i] <- waic_res$estimates["waic", "Estimate"]
+          results$waic_se[i] <- waic_res$estimates["waic", "SE"]
+          message(sprintf("  WAIC: %.2f (SE: %.2f)", results$waic[i], results$waic_se[i]))
+        }
+      } else {
+        warning("No 'log_lik' parameters found in samples.")
+      }
     }
 
-    # DIC would go here
-    results$dic[i] <- get_dic_from_jags(model_dir)
+    # DIC (Legacy check)
+    results$dic[i] <- NA
   }
 
   return(results)
@@ -126,7 +147,6 @@ compare_models_simple <- function(model_dirs) {
 #' @param model_dirs Named vector of model directories
 #' @return Data frame with parameter estimates
 extract_parameter_estimates <- function(model_dirs) {
-
   param_list <- list()
 
   for (model_name in names(model_dirs)) {
@@ -161,9 +181,9 @@ extract_parameter_estimates <- function(model_dirs) {
   return(all_params)
 }
 
-#==============================================================================
+# ==============================================================================
 # RUN COMPARISON
-#==============================================================================
+# ==============================================================================
 
 message("=== MODEL COMPARISON ===\n")
 
@@ -173,32 +193,37 @@ for (model_name in names(model_dirs)) {
   samples_file <- file.path(model_dir, "mcmc_samples.rds")
 
   if (!file.exists(samples_file)) {
-    stop(sprintf("Model fit not found for %s. Run fit_%s.R first.",
-                 model_name, model_name))
+    stop(sprintf(
+      "Model fit not found for %s. Run fit_%s.R first.",
+      model_name, model_name
+    ))
   }
 }
 
 message("All model fits found.\n")
 
-#==============================================================================
+# ==============================================================================
 # CONVERGENCE COMPARISON
-#==============================================================================
+# ==============================================================================
 
 message("=== CONVERGENCE STATISTICS ===\n")
 
-comparison_df <- compare_models_simple(model_dirs)
+comparison_df <- compare_models_waic(model_dirs)
 
 print(comparison_df)
 
 # Save comparison table
 write.csv(comparison_df, file.path(output_dir, "model_comparison_table.csv"),
-          row.names = FALSE)
-message(sprintf("\nComparison table saved to: %s",
-                file.path(output_dir, "model_comparison_table.csv")))
+  row.names = FALSE
+)
+message(sprintf(
+  "\nComparison table saved to: %s",
+  file.path(output_dir, "model_comparison_table.csv")
+))
 
-#==============================================================================
+# ==============================================================================
 # PARAMETER ESTIMATES
-#==============================================================================
+# ==============================================================================
 
 message("\n=== PARAMETER ESTIMATES ===\n")
 
@@ -208,13 +233,16 @@ print(param_estimates)
 
 # Save parameter estimates
 write.csv(param_estimates, file.path(output_dir, "parameter_estimates.csv"),
-          row.names = FALSE)
-message(sprintf("\nParameter estimates saved to: %s",
-                file.path(output_dir, "parameter_estimates.csv")))
+  row.names = FALSE
+)
+message(sprintf(
+  "\nParameter estimates saved to: %s",
+  file.path(output_dir, "parameter_estimates.csv")
+))
 
-#==============================================================================
+# ==============================================================================
 # VISUALIZATIONS
-#==============================================================================
+# ==============================================================================
 
 message("\n=== CREATING COMPARISON PLOTS ===\n")
 
@@ -224,30 +252,34 @@ par(mfrow = c(1, 2))
 
 # R-hat comparison
 barplot(comparison_df$mean_rhat,
-        names.arg = comparison_df$model,
-        main = "Mean R-hat by Model",
-        ylab = "Mean R-hat",
-        ylim = c(0.9, 1.2),
-        col = "steelblue")
+  names.arg = comparison_df$model,
+  main = "Mean R-hat by Model",
+  ylab = "Mean R-hat",
+  ylim = c(0.9, 1.2),
+  col = "steelblue"
+)
 abline(h = 1.1, col = "red", lty = 2, lwd = 2)
 text(x = 1.5, y = 1.15, labels = "Threshold = 1.1", col = "red")
 
 # ESS comparison
 barplot(comparison_df$median_ess,
-        names.arg = comparison_df$model,
-        main = "Median Effective Sample Size",
-        ylab = "Median ESS",
-        col = "steelblue")
+  names.arg = comparison_df$model,
+  main = "Median Effective Sample Size",
+  ylab = "Median ESS",
+  col = "steelblue"
+)
 abline(h = 1000, col = "red", lty = 2, lwd = 2)
 text(x = 1.5, y = 1500, labels = "Target = 1000", col = "red")
 
 dev.off()
 
-message(sprintf("Convergence plots saved to: %s",
-                file.path(output_dir, "convergence_comparison.pdf")))
+message(sprintf(
+  "Convergence plots saved to: %s",
+  file.path(output_dir, "convergence_comparison.pdf")
+))
 
 # Parameter comparison plot (for common parameters)
-common_params <- c("mu_cons")  # cons is in all three models
+common_params <- c("mu_cons") # cons is in all three models
 
 pdf(file.path(output_dir, "parameter_comparison.pdf"), width = 10, height = 6)
 
@@ -257,30 +289,37 @@ for (param in common_params) {
   if (nrow(param_subset) > 0) {
     # Create barplot with error bars
     bp <- barplot(param_subset$mean,
-                  names.arg = param_subset$model,
-                  main = sprintf("Comparison: %s", param),
-                  ylab = "Posterior Mean",
-                  ylim = range(c(param_subset$mean - param_subset$sd,
-                                 param_subset$mean + param_subset$sd)),
-                  col = "steelblue")
+      names.arg = param_subset$model,
+      main = sprintf("Comparison: %s", param),
+      ylab = "Posterior Mean",
+      ylim = range(c(
+        param_subset$mean - param_subset$sd,
+        param_subset$mean + param_subset$sd
+      )),
+      col = "steelblue"
+    )
 
     # Add error bars
-    arrows(x0 = bp,
-           y0 = param_subset$mean - param_subset$sd,
-           x1 = bp,
-           y1 = param_subset$mean + param_subset$sd,
-           angle = 90, code = 3, length = 0.1, lwd = 2)
+    arrows(
+      x0 = bp,
+      y0 = param_subset$mean - param_subset$sd,
+      x1 = bp,
+      y1 = param_subset$mean + param_subset$sd,
+      angle = 90, code = 3, length = 0.1, lwd = 2
+    )
   }
 }
 
 dev.off()
 
-message(sprintf("Parameter plots saved to: %s",
-                file.path(output_dir, "parameter_comparison.pdf")))
+message(sprintf(
+  "Parameter plots saved to: %s",
+  file.path(output_dir, "parameter_comparison.pdf")
+))
 
-#==============================================================================
+# ==============================================================================
 # SUMMARY REPORT
-#==============================================================================
+# ==============================================================================
 
 message("\n=== SUMMARY ===\n")
 message("Model comparison complete.\n")

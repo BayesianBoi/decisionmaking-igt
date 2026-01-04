@@ -4,10 +4,10 @@
 
 | Script | Purpose |
 |--------|---------|
-| `fit_eef_clinical.R` | Fit EEF model (forgetting mechanism) |
+| `fit_eef.R` | Fit EEF model (forgetting mechanism) |
 | `fit_pvl_delta.R` | Fit PVL-Delta baseline model |
 | `fit_orl.R` | Fit ORL model (asymmetric learning) |
-| `parameter_recovery_eef.R` | Validate model identifiability |
+| `parameter_recovery.R` | Validate model identifiability (Simulate & Recover) |
 | `compare_groups.R` | Compare forgetting rates between groups |
 | `compare_models.R` | Compare model fit across EEF, PVL-Delta, ORL |
 | `create_figures.R` | Generate publication figures |
@@ -16,7 +16,7 @@
 
 | File | Parameters | Description |
 |------|-----------|-------------|
-| `eef_clinical.jags` | θ, λ, φ, cons | Exploitation-Exploration with Forgetting |
+| `eef.jags` | θ, λ, φ, cons | Exploitation-Exploration with Forgetting |
 | `pvl_delta.jags` | A, α, cons, λ | Prospect Valence Learning with delta rule |
 | `orl.jags` | A_rew, A_pun, K, βF, βP | Outcome Representation Learning |
 
@@ -42,7 +42,7 @@ All models use identical settings for comparability:
 
 Results are saved to `results/` subdirectories:
 
-- `results/eef_clinical/`
+- `results/eef/`
 - `results/pvl_delta/`
 - `results/orl/`
 - `results/group_comparison/`

@@ -110,6 +110,9 @@ model {
       # Likelihood of observed choice
       choice[s, t] ~ dcat(p[s, t, ])
 
+      # Log-likelihood for WAIC/LOO
+      log_lik[s, t] <- log(p[s, t, choice[s, t]])
+
       # Sign-coded outcome for frequency updating
       # +1 for gains, -1 for losses, 0 for neutral
       sign_outcome[s, t] <- ifelse(outcome[s, t] > 0, 1,

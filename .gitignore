@@ -1,5 +1,6 @@
 # Analysis outputs (generated during model fitting)
 results/
+!results/figures/
 
 # R session files
 .Rhistory

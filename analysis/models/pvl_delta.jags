@@ -91,6 +91,9 @@ model {
       # Likelihood of observed choice
       choice[s, t] ~ dcat(p[s, t, ])
 
+      # Log-likelihood for WAIC/LOO
+      log_lik[s, t] <- log(p[s, t, choice[s, t]])
+
       # Compute utility of outcome
       # Small constant (0.001) prevents pow(0, alpha) numerical issues
       abs_outcome[s, t] <- abs(outcome[s, t]) + 0.001

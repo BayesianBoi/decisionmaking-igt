@@ -26,14 +26,13 @@ config <- list(
   n_iter = 20000,
   n_chains = 4,
   thin = 2,
-  
   rhat_threshold = 1.1,
   n_eff_min = 1000,
-  
   parameters_to_monitor = c(
     "mu_Arew", "mu_Apun", "mu_K", "mu_betaF", "mu_betaP",
     "sigma_Arew", "sigma_Apun", "sigma_K", "sigma_betaF", "sigma_betaP",
-    "Arew", "Apun", "K", "betaF", "betaP"
+    "Arew", "Apun", "K", "betaF", "betaP",
+    "log_lik"
   )
 )
 
@@ -48,8 +47,10 @@ message("Loading data...")
 
 dat_all <- load_all_igt_data()
 
-clinical_studies <- c("Ahn2014_HC", "Ahn2014_Amph", "Ahn2014_Hero",
-                      "Fridberg2010_HC", "Fridberg2010_Cbis")
+clinical_studies <- c(
+  "Ahn2014_HC", "Ahn2014_Amph", "Ahn2014_Hero",
+  "Fridberg2010_HC", "Fridberg2010_Cbis"
+)
 
 dat_clinical <- dat_all[dat_all$study %in% clinical_studies, ]
 
@@ -79,9 +80,8 @@ n_cores <- min(config$n_chains, detectCores() - 1)
 message(sprintf("Running %d chains on %d cores...", config$n_chains, n_cores))
 
 chain_results <- mclapply(1:config$n_chains, function(chain_id) {
-  
   set.seed(chain_id * 12345)
-  
+
   model <- jags.model(
     file = model_file,
     data = jags_data,
@@ -89,18 +89,17 @@ chain_results <- mclapply(1:config$n_chains, function(chain_id) {
     n.adapt = config$n_adapt,
     quiet = TRUE
   )
-  
+
   update(model, n.iter = config$n_burnin)
-  
+
   samples <- coda.samples(
     model = model,
     variable.names = config$parameters_to_monitor,
     n.iter = config$n_iter,
     thin = config$thin
   )
-  
+
   return(samples[[1]])
-  
 }, mc.cores = n_cores)
 
 samples <- mcmc.list(chain_results)
@@ -124,7 +123,7 @@ message(sprintf("R-hat median: %.3f", median(rhat_values)))
 
 n_converged <- sum(rhat_values < config$rhat_threshold)
 n_total <- length(rhat_values)
-message(sprintf("Converged: %d/%d (%.1f%%)", n_converged, n_total, 100*n_converged/n_total))
+message(sprintf("Converged: %d/%d (%.1f%%)", n_converged, n_total, 100 * n_converged / n_total))
 
 eff_size <- effectiveSize(samples)
 message(sprintf("ESS range: [%.0f, %.0f]", min(eff_size), max(eff_size)))

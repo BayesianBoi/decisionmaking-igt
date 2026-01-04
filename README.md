@@ -1,6 +1,6 @@
 # Memory Decay in Reinforcement Learning
 
-Hierarchical Bayesian analysis of Iowa Gambling Task data investigating whether substance use disorders are associated with elevated memory decay rates during reinforcement learning.
+A Hierarchical Bayesian analysis investigating whether substance use disorders are associated with elevated memory decay rates during reinforcement learning in the Iowa Gambling Task (IGT).
 
 ## Research Questions
 
@@ -38,17 +38,21 @@ Clinical populations from published studies:
 
 - R >= 4.0
 - JAGS >= 4.3
-- R packages: rjags, coda, ggplot2
+- R packages: rjags, coda, ggplot2, gridExtra
 
 ## Usage
 
 ```bash
-# Fit models (run in parallel)
-Rscript analysis/scripts/fit_eef_clinical.R
-Rscript analysis/scripts/fit_pvl_delta.R
-Rscript analysis/scripts/fit_orl.R
+# Verify pipeline integrity
+Rscript analysis/scripts/verify_pipeline.R
+
+# Fit models (run in parallel on cloud)
+nohup Rscript analysis/scripts/fit_eef.R > eef.log 2>&1 &
+nohup Rscript analysis/scripts/fit_pvl_delta.R > pvl.log 2>&1 &
+nohup Rscript analysis/scripts/fit_orl.R > orl.log 2>&1 &
 
 # Analysis
+Rscript analysis/scripts/parameter_recovery.R
 Rscript analysis/scripts/compare_groups.R
 Rscript analysis/scripts/compare_models.R
 Rscript analysis/scripts/create_figures.R
@@ -60,7 +64,7 @@ Rscript analysis/scripts/create_figures.R
 ├── analysis/
 │   ├── scripts/           # Analysis scripts
 │   ├── models/            # JAGS model definitions
-│   │   ├── eef_clinical.jags
+│   │   ├── eef.jags
 │   │   ├── pvl_delta.jags
 │   │   └── orl.jags
 │   └── utils/             # Helper functions

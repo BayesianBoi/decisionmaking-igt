@@ -117,6 +117,9 @@ model {
       # Likelihood of observed choice
       choice[s, t] ~ dcat(p[s, t, ])
 
+      # Log-likelihood for WAIC/LOO
+      log_lik[s, t] <- log(p[s, t, choice[s, t]])
+
       # Compute utility (symmetric power function, no loss aversion)
       gain[s, t] <- max(outcome[s, t], 0)
       loss[s, t] <- max(-outcome[s, t], 0)

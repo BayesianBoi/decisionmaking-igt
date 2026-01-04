@@ -2,10 +2,10 @@
 # Fit EEF Model to Clinical Populations (Parallel Chains)
 # ===========================================================================
 #
-# Reference: Yang, X., et al. (2025). Exploitation and Exploration with 
+# Reference: Yang, X., et al. (2025). Exploitation and Exploration with
 #            Forgetting. Frontiers in Psychology.
 #
-# Usage: Rscript analysis/scripts/fit_eef_clinical.R
+# Usage: Rscript analysis/scripts/fit_eef.R
 #
 # ===========================================================================
 
@@ -26,18 +26,17 @@ config <- list(
   n_iter = 20000,
   n_chains = 4,
   thin = 2,
-  
   rhat_threshold = 1.1,
   n_eff_min = 1000,
-  
   parameters_to_monitor = c(
     "mu_theta", "mu_lambda_forget", "mu_phi", "mu_cons",
     "sigma_theta", "sigma_lambda_forget", "sigma_phi", "sigma_cons",
-    "theta", "lambda_forget", "phi", "cons"
+    "theta", "lambda_forget", "phi", "cons",
+    "log_lik"
   )
 )
 
-output_dir <- "results/eef_clinical"
+output_dir <- "results/eef"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 # ===========================================================================
@@ -48,8 +47,10 @@ message("Loading data...")
 
 dat_all <- load_all_igt_data()
 
-clinical_studies <- c("Ahn2014_HC", "Ahn2014_Amph", "Ahn2014_Hero",
-                      "Fridberg2010_HC", "Fridberg2010_Cbis")
+clinical_studies <- c(
+  "Ahn2014_HC", "Ahn2014_Amph", "Ahn2014_Hero",
+  "Fridberg2010_HC", "Fridberg2010_Cbis"
+)
 
 dat_clinical <- dat_all[dat_all$study %in% clinical_studies, ]
 
@@ -81,7 +82,7 @@ saveRDS(jags_data, file.path(output_dir, "jags_data.rds"))
 
 message("\nFitting EEF model with parallel chains...")
 
-model_file <- "analysis/models/eef_clinical.jags"
+model_file <- "analysis/models/eef.jags"
 if (!file.exists(model_file)) {
   stop(sprintf("Model file not found: %s", model_file))
 }
@@ -94,9 +95,8 @@ message(sprintf("Running %d chains on %d cores...", config$n_chains, n_cores))
 
 # Run chains in parallel using mclapply (simpler than makeCluster)
 chain_results <- mclapply(1:config$n_chains, function(chain_id) {
-  
   set.seed(chain_id * 12345)
-  
+
   model <- jags.model(
     file = model_file,
     data = jags_data,
@@ -104,18 +104,17 @@ chain_results <- mclapply(1:config$n_chains, function(chain_id) {
     n.adapt = config$n_adapt,
     quiet = TRUE
   )
-  
+
   update(model, n.iter = config$n_burnin)
-  
+
   samples <- coda.samples(
     model = model,
     variable.names = config$parameters_to_monitor,
     n.iter = config$n_iter,
     thin = config$thin
   )
-  
+
   return(samples[[1]])
-  
 }, mc.cores = n_cores)
 
 # Combine into mcmc.list
@@ -140,7 +139,7 @@ message(sprintf("R-hat median: %.3f", median(rhat_values)))
 
 n_converged <- sum(rhat_values < config$rhat_threshold)
 n_total <- length(rhat_values)
-message(sprintf("Converged: %d/%d (%.1f%%)", n_converged, n_total, 100*n_converged/n_total))
+message(sprintf("Converged: %d/%d (%.1f%%)", n_converged, n_total, 100 * n_converged / n_total))
 
 eff_size <- effectiveSize(samples)
 message(sprintf("ESS range: [%.0f, %.0f]", min(eff_size), max(eff_size)))
