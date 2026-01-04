@@ -4,9 +4,6 @@ temp_*/
 *.rds
 *.RData
 
-# Data (Sensitive/Large)
-data/
-
 # Documentation (User requested exclusion)
 docs/
 
