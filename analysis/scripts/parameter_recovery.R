@@ -21,27 +21,36 @@ source("analysis/utils/prepare_eef_data.R")
 # ===========================================================================
 # CONFIGURATION
 # ===========================================================================
+# Parameter Recovery Analysis
+# ---------------------------
+# Before trusting model fits on real data, we must prove the model works.
+# Mechanism:
+# 1. Simulate "fake" subjects with known parameters (Truth).
+# 2. Fit the model to this fake data (blind to the truth).
+# 3. Correlation between Truth vs Recovered proves we can detect
+#    actual individual differences rather than just noise.
 
-n_subjects <- 30 # Subjects per model
-n_trials <- 100 # Standard IGT length
-n_chains <- 3
-n_adapt <- 1000
-n_burnin <- 2000
-n_iter <- 5000
-thin <- 2
+n_subjects <- 30 # Subjects per model (enough for stable correlations)
+n_trials <- 100 # Standard IGT length (Bechara et al., 1994)
+n_chains <- 3 # Fewer chains than fitting (speed over precision)
+n_adapt <- 1000 # Shorter adaptation (parameters are more constrained)
+n_burnin <- 2000 # Shorter burn-in
+n_iter <- 5000 # Fewer iterations (sufficient for point estimates)
+thin <- 2 # Light thinning
 
 output_dir <- "results/parameter_recovery"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-set.seed(123)
+set.seed(123) # Reproducible simulations
 
-# Payoff scheme (Standard IGT A,B,C,D)
-# A: -250 net (freq), B: -250 net (infreq), C: +250 net (freq), D: +250 net (infreq)
-# Simplified approximations for simulation:
+# Payoff scheme (Standard IGT: Bechara et al., 1994)
+# Decks A & B: High immediate reward ($100), but net loss over time
+# Decks C & D: Low immediate reward ($50), but net gain over time
+# The "freq" parameter controls loss probability per trial.
 payoffs <- list(
-  A = list(wins = 100, losses = -250, freq = 0.5), # Bad
-  B = list(wins = 100, losses = -1250, freq = 0.1), # Bad
-  C = list(wins = 50, losses = -50, freq = 0.5), # Good
-  D = list(wins = 50, losses = -250, freq = 0.1) # Good
+  A = list(wins = 100, losses = -250, freq = 0.5), # Bad deck (frequent losses)
+  B = list(wins = 100, losses = -1250, freq = 0.1), # Bad deck (rare large loss)
+  C = list(wins = 50, losses = -50, freq = 0.5), # Good deck (frequent small losses)
+  D = list(wins = 50, losses = -250, freq = 0.1) # Good deck (rare loss)
 )
 
 # ===========================================================================
@@ -52,10 +61,10 @@ payoffs <- list(
 simulate_pvl <- function(n_subj, n_trials) {
   # True params: A (learning), alpha (shape), cons (consistency), lambda (loss av)
   params <- data.frame(
-    A = runif(n_subj, 0.1, 0.5), # Learning rate
-    alpha = runif(n_subj, 0.3, 0.7), # Curve shape
-    cons = runif(n_subj, 1.0, 3.0), # Consistency
-    lambda = runif(n_subj, 1.0, 3.0) # Loss aversion
+    A = runif(n_subj, 0.01, 0.99), # Learning rate: Full range
+    alpha = runif(n_subj, 0.1, 1.5), # Curve shape: Broad range
+    cons = runif(n_subj, 0.1, 5.0), # Consistency: From random to deterministic
+    lambda = runif(n_subj, 0.5, 5.0) # Loss aversion: Low to high
   )
 
   choice_mat <- matrix(NA, n_subj, n_trials)
@@ -67,8 +76,9 @@ simulate_pvl <- function(n_subj, n_trials) {
 
     for (t in 1:n_trials) {
       # Choice prob (Softmax)
-      theta <- 3^p$cons - 1
-      prob <- exp(theta * Ev) / sum(exp(theta * Ev))
+      # Matching JAGS: v = cons * EV
+      v <- p$cons * Ev
+      prob <- exp(v - max(v)) / sum(exp(v - max(v)))
       ch <- sample(1:4, 1, prob = prob)
       choice_mat[s, t] <- ch
 
@@ -93,11 +103,11 @@ simulate_pvl <- function(n_subj, n_trials) {
 simulate_orl <- function(n_subj, n_trials) {
   # A_rew, A_pun, K (decay), betaF (freq weight), betaP (pers)
   params <- data.frame(
-    A_rew = runif(n_subj, 0.1, 0.5),
-    A_pun = runif(n_subj, 0.05, 0.3),
-    K = runif(n_subj, 0.1, 0.5),
-    betaF = runif(n_subj, 1.0, 3.0),
-    betaP = runif(n_subj, 0, 1.0)
+    A_rew = runif(n_subj, 0.01, 0.99), # Learning rate: Full range
+    A_pun = runif(n_subj, 0.01, 0.99), # Learning rate: Full range
+    K = runif(n_subj, 0.0, 0.99), # Decay
+    betaF = runif(n_subj, 0.1, 5.0), # Freq weight
+    betaP = runif(n_subj, 0.0, 2.0) # Perseverance
   )
 
   choice_mat <- matrix(NA, n_subj, n_trials)
@@ -113,7 +123,7 @@ simulate_orl <- function(n_subj, n_trials) {
     for (t in 1:n_trials) {
       # Total Utility (Theta fixed at 1 per Haines 2018)
       V <- Ev + p$betaF * Ef + p$betaP * Pers
-      prob <- exp(V) / sum(exp(V))
+      prob <- exp(V - max(V)) / sum(exp(V - max(V)))
       ch <- sample(1:4, 1, prob = prob)
       choice_mat[s, t] <- ch
 
@@ -177,10 +187,10 @@ simulate_orl <- function(n_subj, n_trials) {
 simulate_eef <- function(n_subj, n_trials) {
   params <- data.frame(
     id = 1:n_subj,
-    theta = runif(n_subj, 0.1, 0.5),
-    lambda = runif(n_subj, 0.1, 0.5), # lambda_forget
-    phi = runif(n_subj, -1, 1),
-    cons = runif(n_subj, 1.0, 3.0)
+    theta = runif(n_subj, 0.1, 1.0), # Sensitivity
+    lambda = runif(n_subj, 0.01, 0.99), # lambda_forget: Full range
+    phi = runif(n_subj, -5, 5), # Exploration: Full range
+    cons = runif(n_subj, 0.1, 5.0) # Consistency
   )
 
   choice_mat <- matrix(NA, n_subj, n_trials)
@@ -193,7 +203,8 @@ simulate_eef <- function(n_subj, n_trials) {
 
     for (t in 1:n_trials) {
       w <- exploit + explore
-      prob <- exp(p$cons * w) / sum(exp(p$cons * w))
+      v <- p$cons * w
+      prob <- exp(v - max(v)) / sum(exp(v - max(v)))
       ch <- sample(1:4, 1, prob = prob)
       choice_mat[s, t] <- ch
 
@@ -212,7 +223,7 @@ simulate_eef <- function(n_subj, n_trials) {
           explore[d] <- 0
         } else {
           exploit[d] <- (1 - p$lambda) * exploit[d]
-          explore[d] <- p$lambda * explore[d] + (1 - p$lambda) * p$phi
+          explore[d] <- (1 - p$lambda) * explore[d] + p$lambda * p$phi
         }
       }
     }
@@ -277,12 +288,29 @@ for (m in models_to_test) {
 
   # 3. Fit
   message("Fitting...")
-  mod <- jags.model(m$file, jags_data, n.chains = n_chains, n.adapt = n_adapt, quiet = TRUE)
-  update(mod, n_burnin, progress.bar = "none")
 
-  # Monitor individual parameters too
-  monitors <- c(m$params, m$indiv_params)
-  samples <- coda.samples(mod, monitors, n_iter, thin = thin)
+  # Parallel fitting (copying logic from fit scripts)
+  n_cores <- min(n_chains, detectCores() - 1)
+
+  chain_results <- mclapply(1:n_chains, function(chain_id) {
+    set.seed(chain_id * 12345)
+
+    # CRITICAL: We need independent seeds for recovery too!
+    # Otherwise, we might get good recovery just because all chains drift the same way.
+    inits_rng <- list(
+      .RNG.name = "base::Wichmann-Hill",
+      .RNG.seed = chain_id * 12345
+    )
+
+    model <- jags.model(m$file, jags_data, inits = inits_rng, n.chains = 1, n.adapt = n_adapt, quiet = TRUE)
+    update(model, n_burnin, progress.bar = "none")
+
+    monitors <- c(m$params, m$indiv_params)
+    coda.samples(model, monitors, n_iter, thin = thin)
+  }, mc.cores = n_cores)
+
+  # Combine chains
+  samples <- do.call(mcmc.list, lapply(chain_results, function(x) x[[1]]))
 
   # 4. Evaluate
   sum_stats <- summary(samples)$statistics

@@ -49,11 +49,14 @@ load_fridberg_2010 <- function(group = "HC") {
 load_steingroever_2014 <- function(n_trials = 95) {
   # Load wide format data
   choice <- read.table(sprintf("data/raw/Steingroever_2014/choice_%d.txt", n_trials),
-                       header = TRUE, check.names = FALSE, stringsAsFactors = FALSE)
+    header = TRUE, check.names = FALSE, stringsAsFactors = FALSE
+  )
   wi <- read.table(sprintf("data/raw/Steingroever_2014/wi_%d.txt", n_trials),
-                   header = TRUE, check.names = FALSE, stringsAsFactors = FALSE)
+    header = TRUE, check.names = FALSE, stringsAsFactors = FALSE
+  )
   lo <- read.table(sprintf("data/raw/Steingroever_2014/lo_%d.txt", n_trials),
-                   header = TRUE, check.names = FALSE, stringsAsFactors = FALSE)
+    header = TRUE, check.names = FALSE, stringsAsFactors = FALSE
+  )
 
   # Get number of subjects
   n_subj <- nrow(choice)
@@ -116,6 +119,14 @@ load_all_igt_data <- function() {
   return(all_data)
 }
 
+#' Add contiguous integer subject index (Safe for JAGS)
+#' @param dat Data frame with subj_unique
+#' @return Data frame with 'subj_idx' column
+add_subject_index <- function(dat) {
+  dat$subj_idx <- as.integer(factor(dat$subj_unique, levels = unique(dat$subj_unique)))
+  return(dat)
+}
+
 #' Validate IGT data
 #' @param dat Data frame with IGT data
 #' @return TRUE if valid, stops with error otherwise
@@ -145,8 +156,10 @@ validate_igt_data <- function(dat) {
     }
   }
 
-  message(sprintf("Data validation passed: %d subjects, %d total trials",
-                  length(unique(dat$subj_unique)), nrow(dat)))
+  message(sprintf(
+    "Data validation passed: %d subjects, %d total trials",
+    length(unique(dat$subj_unique)), nrow(dat)
+  ))
 
   return(TRUE)
 }

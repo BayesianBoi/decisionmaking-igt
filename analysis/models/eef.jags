@@ -140,8 +140,8 @@ model {
       for (d in 1:4) {
         explore[s, t+1, d] <- equals(d, choice[s, t]) * 0 +
                               (1 - equals(d, choice[s, t])) *
-                              (lambda_forget[s] * explore[s, t, d] +
-                               (1 - lambda_forget[s]) * phi[s])
+                              ((1 - lambda_forget[s]) * explore[s, t, d] +
+                               lambda_forget[s] * phi[s])
       }
     }
   }

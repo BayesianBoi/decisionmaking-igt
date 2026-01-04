@@ -1,9 +1,9 @@
 # ===========================================================================
-# Fit ORL Model to Clinical Populations (Parallel Chains)
+# ORL Model Fitting Script
 # ===========================================================================
-#
-# Reference: Haines, N., Vassileva, J., & Ahn, W.Y. (2018). The Outcome-
-#            Representation Learning model. Cognitive Science.
+# This script estimates the Outcome-Representation Learning (ORL) model.
+# Unlike PVL, this model tracks "Expected Frequency" of rewards, which
+# is often critical for understanding clinical decision-making deficiencies.
 #
 # Usage: Rscript analysis/scripts/fit_orl.R
 #
@@ -25,7 +25,7 @@ config <- list(
   n_burnin = 10000,
   n_iter = 20000,
   n_chains = 4,
-  thin = 2,
+  thin = 5,
   rhat_threshold = 1.1,
   n_eff_min = 1000,
   parameters_to_monitor = c(
@@ -82,9 +82,18 @@ message(sprintf("Running %d chains on %d cores...", config$n_chains, n_cores))
 chain_results <- mclapply(1:config$n_chains, function(chain_id) {
   set.seed(chain_id * 12345)
 
+  # CRITICAL: We must explicit seed JAGS here.
+  # Without this, mclapply would create identical RNG states in the C++ backend,
+  # leading to 4 identical chains and invalid R-hats.
+  inits_rng <- list(
+    .RNG.name = "base::Wichmann-Hill",
+    .RNG.seed = chain_id * 8675309
+  )
+
   model <- jags.model(
     file = model_file,
     data = jags_data,
+    inits = inits_rng,
     n.chains = 1,
     n.adapt = config$n_adapt,
     quiet = TRUE
@@ -110,8 +119,10 @@ message(sprintf("Sampling complete (%.1f min)", total_time))
 saveRDS(samples, file.path(output_dir, "mcmc_samples.rds"))
 
 # ===========================================================================
-# Convergence Diagnostics
+# Convergence Checks
 # ===========================================================================
+# Checking Gelman-Rubin R-hat to verify chain mixing.
+# Values > 1.1 indicate we need longer burn-in.
 
 message("\nConvergence diagnostics:")
 

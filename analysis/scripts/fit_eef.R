@@ -21,13 +21,26 @@ source("analysis/utils/prepare_eef_data.R")
 # ===========================================================================
 
 config <- list(
+  # MCMC Configuration
+  # We use a conservative burn-in (10,000) because clinical data often yields
+  # "difficult" posterior geometries where chains can get stuck in local modes.
+  # We run 4 chains to catch if one chain gets stuck while others explore.
+  # Thinning = 5 reduces the massive file size of the log-likelihood matrix.
   n_adapt = 5000,
   n_burnin = 10000,
   n_iter = 20000,
   n_chains = 4,
-  thin = 2,
-  rhat_threshold = 1.1,
-  n_eff_min = 1000,
+  thin = 5,
+
+  # Convergence Thresholds
+  rhat_threshold = 1.1, # Gelman-Rubin R-hat < 1.1 indicates convergence
+  n_eff_min = 1000, # Minimum effective sample size for reliable inference
+
+  # Parameters to Monitor
+  # - mu_*: Group-level means (primary inferential targets)
+  # - sigma_*: Group-level SDs (individual variation)
+  # - Individual params: For posterior predictive checks
+  # - log_lik: Required for WAIC/LOO model comparison
   parameters_to_monitor = c(
     "mu_theta", "mu_lambda_forget", "mu_phi", "mu_cons",
     "sigma_theta", "sigma_lambda_forget", "sigma_phi", "sigma_cons",
@@ -89,17 +102,25 @@ if (!file.exists(model_file)) {
 
 start_time <- Sys.time()
 
-# Detect available cores
+# Configure parallel execution
 n_cores <- min(config$n_chains, detectCores() - 1)
 message(sprintf("Running %d chains on %d cores...", config$n_chains, n_cores))
 
-# Run chains in parallel using mclapply (simpler than makeCluster)
+# Execute MCMC chains
 chain_results <- mclapply(1:config$n_chains, function(chain_id) {
   set.seed(chain_id * 12345)
+
+  # CRITICAL: Independent RNG for parallel execution
+  # We explicitly seed JAGS to prevent "identical chain" artifacts.
+  inits_rng <- list(
+    .RNG.name = "base::Wichmann-Hill",
+    .RNG.seed = chain_id * 99991
+  )
 
   model <- jags.model(
     file = model_file,
     data = jags_data,
+    inits = inits_rng,
     n.chains = 1,
     n.adapt = config$n_adapt,
     quiet = TRUE

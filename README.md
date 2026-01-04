@@ -79,3 +79,25 @@ Rscript analysis/scripts/create_figures.R
 - Fridberg, D.J., et al. (2010). Cognitive mechanisms underlying risky decision-making in chronic cannabis users. *Journal of Mathematical Psychology*.
 - Haines, N., Vassileva, J., & Ahn, W.Y. (2018). The Outcome-Representation Learning model. *Cognitive Science*.
 - Yang, X., et al. (2025). Exploitation and Exploration with Forgetting. *Frontiers in Psychology*.
+
+## Cloud Deployment Guide
+
+1. **Install System Dependencies (Ubuntu/Debian)**
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y jags r-base
+   ```
+
+2. **Clone Repository**
+   ```bash
+   git clone <your-repo-url>
+   cd decision_making
+   ```
+
+3. **Install R Packages**
+   ```bash
+   Rscript requirements.R
+   ```
+
+4. **Run Pipeline (Background Mode)**
+   Use the `nohup` commands listed in the **Usage** section to ensure processes continue running if your session disconnects.

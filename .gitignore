@@ -1,37 +1,23 @@
-# Analysis outputs (generated during model fitting)
+# Analysis outputs
 results/
-!results/figures/
+temp_*/
+*.rds
+*.RData
 
-# R session files
+# Data (Sensitive/Large)
+data/
+
+# Documentation (User requested exclusion)
+docs/
+
+# R session & System
 .Rhistory
 .RData
 .Rproj.user
 *.Rproj
-
-# System files
 .DS_Store
-._.DS_Store
-**/.DS_Store
-**/._.DS_Store
-Thumbs.db
-
-# Backup and temporary files
-*.bak
-*~
-*.swp
-*.log
-*.tmp
-*.temp
-nohup.out
-
-# IDE files
 .vscode/
-.idea/
-*.code-workspace
 
-# Legacy code (preserved locally but not tracked)
-R/
-
-# Documentation (kept locally, not on GitHub)
-docs/
-analysis/PAPER_WORKFLOW.md
+# Logs
+*.log
+nohup.out

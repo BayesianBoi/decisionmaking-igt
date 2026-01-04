@@ -74,6 +74,10 @@ compare_models_waic <- function(model_dirs) {
     median_ess = NA,
     waic = NA,
     waic_se = NA,
+    loo = NA,
+    loo_se = NA,
+    p_loo = NA,
+    pareto_k_good = NA, # Proportion of k < 0.7
     dic = NA,
     stringsAsFactors = FALSE
   )
@@ -95,7 +99,7 @@ compare_models_waic <- function(model_dirs) {
       results$median_ess[i] <- median(ess_vals, na.rm = TRUE)
     }
 
-    # Load samples for WAIC
+    # Load samples for WAIC and LOO
     samples_file <- file.path(model_dir, "mcmc_samples.rds")
     if (file.exists(samples_file)) {
       samples <- readRDS(samples_file)
@@ -103,19 +107,17 @@ compare_models_waic <- function(model_dirs) {
 
       # Extract log-likelihoods
       message("  Extracting log-likelihoods...")
-      # Combine chains
       mat <- as.matrix(samples)
-
-      # Identify log_lik columns
-      # Assuming columns are named "log_lik[s,t]"
       ll_cols <- grep("^log_lik", colnames(mat))
 
       if (length(ll_cols) > 0) {
         log_lik_mat <- mat[, ll_cols]
-        message(sprintf("  Computing WAIC for %d obs x %d draws...", ncol(log_lik_mat), nrow(log_lik_mat)))
+        message(sprintf("  Computing WAIC and LOO for %d obs x %d draws...", ncol(log_lik_mat), nrow(log_lik_mat)))
 
-        # Calculate WAIC
-        # We catch warnings about unstable estimates if they occur
+        # =====================================================================
+        # WAIC (Widely Applicable Information Criterion)
+        # Lower is better. SE allows pairwise comparison confidence.
+        # =====================================================================
         waic_res <- tryCatch(
           {
             loo::waic(log_lik_mat)
@@ -130,6 +132,46 @@ compare_models_waic <- function(model_dirs) {
           results$waic[i] <- waic_res$estimates["waic", "Estimate"]
           results$waic_se[i] <- waic_res$estimates["waic", "SE"]
           message(sprintf("  WAIC: %.2f (SE: %.2f)", results$waic[i], results$waic_se[i]))
+        }
+
+        # =====================================================================
+        # LOO-CV (Leave-One-Out Cross-Validation via PSIS)
+        # More robust than WAIC for small effective sample sizes.
+        # Pareto-k diagnostics indicate reliability:
+        #   k < 0.5: Excellent
+        #   0.5 < k < 0.7: Good
+        #   k > 0.7: Problematic (observation is influential)
+        # =====================================================================
+        loo_res <- tryCatch(
+          {
+            loo::loo(log_lik_mat)
+          },
+          error = function(e) {
+            warning(sprintf("LOO computation failed for %s: %s", model_name, e$message))
+            return(NULL)
+          }
+        )
+
+        if (!is.null(loo_res)) {
+          results$loo[i] <- loo_res$estimates["looic", "Estimate"]
+          results$loo_se[i] <- loo_res$estimates["looic", "SE"]
+          results$p_loo[i] <- loo_res$estimates["p_loo", "Estimate"]
+
+          # Pareto-k diagnostics
+          pareto_k <- loo_res$diagnostics$pareto_k
+          prop_good <- mean(pareto_k < 0.7, na.rm = TRUE)
+          results$pareto_k_good[i] <- prop_good
+
+          message(sprintf("  LOO: %.2f (SE: %.2f)", results$loo[i], results$loo_se[i]))
+          message(sprintf("  Pareto-k < 0.7: %.1f%% of observations", prop_good * 100))
+
+          # Warn if many problematic observations
+          if (prop_good < 0.95) {
+            warning(sprintf(
+              "  %s: %.1f%% of Pareto-k values > 0.7 (may indicate model misfit)",
+              model_name, (1 - prop_good) * 100
+            ))
+          }
         }
       } else {
         warning("No 'log_lik' parameters found in samples.")

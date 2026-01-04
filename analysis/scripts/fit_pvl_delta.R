@@ -1,9 +1,10 @@
 # ===========================================================================
-# Fit PVL-Delta Model to Clinical Populations (Parallel Chains)
+# PVL-Delta Model Fitting Script
 # ===========================================================================
+# This script estimates the Prospect Valence Learning (PVL) Delta model
+# using the full clinical dataset (Amphetamine, Heroin, Cannabis users + Controls).
 #
-# Reference: Ahn, W.Y., Busemeyer, J.R., & Wagenmakers, E.J. (2008).
-#            Comparison of decision learning models. Cognitive Science.
+# We use parallel MCMC (4 chains) to ensure robust convergence checks.
 #
 # Usage: Rscript analysis/scripts/fit_pvl_delta.R
 #
@@ -25,7 +26,7 @@ config <- list(
   n_burnin = 10000,
   n_iter = 20000,
   n_chains = 4,
-  thin = 2,
+  thin = 5,
   rhat_threshold = 1.1,
   n_eff_min = 1000,
   parameters_to_monitor = c(
@@ -82,9 +83,19 @@ message(sprintf("Running %d chains on %d cores...", config$n_chains, n_cores))
 chain_results <- mclapply(1:config$n_chains, function(chain_id) {
   set.seed(chain_id * 12345)
 
+  # CRITICAL: Explicitly seed the JAGS internal RNG.
+  # Setting R's seed via set.seed() is insufficient for mclapply workers,
+  # as it does not propagate to the C++ layer of JAGS.
+  # We use "base::Wichmann-Hill" to ensure chains are statistically independent.
+  inits_rng <- list(
+    .RNG.name = "base::Wichmann-Hill",
+    .RNG.seed = chain_id * 314159
+  )
+
   model <- jags.model(
     file = model_file,
     data = jags_data,
+    inits = inits_rng, # Pass explicit seeds
     n.chains = 1,
     n.adapt = config$n_adapt,
     quiet = TRUE
@@ -110,8 +121,10 @@ message(sprintf("Sampling complete (%.1f min)", total_time))
 saveRDS(samples, file.path(output_dir, "mcmc_samples.rds"))
 
 # ===========================================================================
-# Convergence Diagnostics
+# Convergence Checks
 # ===========================================================================
+# We use the Gelman-Rubin statistic (R-hat) to ensure chains have mixed.
+# R-hat < 1.1 strongly suggests the samples represent the true posterior.
 
 message("\nConvergence diagnostics:")
 

@@ -6,14 +6,17 @@
 #' @param study_filter Optional vector of study names to include
 #' @return List formatted for JAGS input
 prepare_jags_data <- function(dat, study_filter = NULL) {
-
   # Filter by study if requested
   if (!is.null(study_filter)) {
     dat <- dat[dat$study %in% study_filter, ]
   }
 
-  # Get unique subjects
-  subj_list <- unique(dat$subj_unique)
+  # Get unique subjects (Respect subj_idx if present for consistent ordering)
+  if ("subj_idx" %in% names(dat)) {
+    subj_list <- unique(dat$subj_unique[order(dat$subj_idx)])
+  } else {
+    subj_list <- unique(dat$subj_unique)
+  }
   n_subj <- length(subj_list)
 
   # Get maximum number of trials
@@ -48,7 +51,7 @@ prepare_jags_data <- function(dat, study_filter = NULL) {
     N = n_subj,
     Tsubj = n_trials_per_subj,
     choice = choice_mat,
-    outcome = net_mat / 100  # Scaled outcomes for numerical stability
+    outcome = net_mat / 100 # Scaled outcomes for numerical stability
   )
 
   return(jags_data)
@@ -84,7 +87,6 @@ create_sign_outcome <- function(outcome_mat) {
 #' @param study_filter Optional vector of study names to include
 #' @return List formatted for JAGS input with model-specific variables
 prepare_jags_data_for_model <- function(dat, model, study_filter = NULL) {
-
   # Get base JAGS data
   jags_data <- prepare_jags_data(dat, study_filter)
 
@@ -130,14 +132,16 @@ check_jags_data <- function(jags_data) {
 
     # Should be NA after n_trials
     if (n_trials < max_trials) {
-      if (!all(is.na(jags_data$choice[i, (n_trials+1):max_trials]))) {
+      if (!all(is.na(jags_data$choice[i, (n_trials + 1):max_trials]))) {
         warning(sprintf("Non-NA data for subject %d beyond Tsubj", i))
       }
     }
   }
 
-  message(sprintf("JAGS data check passed: N=%d, max_T=%d, total observations=%d",
-                  jags_data$N, max_trials, sum(jags_data$Tsubj)))
+  message(sprintf(
+    "JAGS data check passed: N=%d, max_T=%d, total observations=%d",
+    jags_data$N, max_trials, sum(jags_data$Tsubj)
+  ))
 
   return(TRUE)
 }

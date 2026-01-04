@@ -19,8 +19,7 @@ simulate_pvl_delta <- function(params, outcomes, n_trials) {
     for (t in 1:n_trials) {
       # Compute choice probabilities (matching JAGS model formulation)
       v <- params$cons[s] * ev
-      exp_util <- exp(v)
-      p_choice <- exp_util / sum(exp_util)
+      p_choice <- exp(v - max(v)) / sum(exp(v - max(v)))
 
       # Sample choice
       choices_sim[s, t] <- sample(1:4, size = 1, prob = p_choice)
@@ -62,8 +61,7 @@ simulate_vse <- function(params, outcomes, n_trials) {
       # Compute choice probabilities (matching JAGS model formulation)
       combined <- ev * params$w[s] + pers * (1 - params$w[s])
       v <- params$cons[s] * combined
-      exp_util <- exp(v)
-      p_choice <- exp_util / sum(exp_util)
+      p_choice <- exp(v - max(v)) / sum(exp(v - max(v)))
 
       # Sample choice
       choices_sim[s, t] <- sample(1:4, size = 1, prob = p_choice)
@@ -112,8 +110,7 @@ simulate_orl <- function(params, outcomes, n_trials) {
     for (t in 1:n_trials) {
       # Compute choice probabilities
       util_combined <- ev + ef * params$betaF[s] + pers * params$betaP[s]
-      exp_util <- exp(util_combined)
-      p_choice <- exp_util / sum(exp_util)
+      p_choice <- exp(util_combined - max(util_combined)) / sum(exp(util_combined - max(util_combined)))
 
       # Sample choice
       choices_sim[s, t] <- sample(1:4, size = 1, prob = p_choice)
@@ -146,6 +143,82 @@ simulate_orl <- function(params, outcomes, n_trials) {
       pers[chosen] <- 1 / (1 + params$K[s])
       for (d in setdiff(1:4, chosen)) {
         pers[d] <- pers[d] / (1 + params$K[s])
+      }
+    }
+  }
+
+  return(choices_sim)
+}
+
+#' Simulate choice data from EEF model
+#' @param params List with theta, lambda (forget), phi, cons
+#' @param outcomes Matrix of outcomes (subj x trial)
+#' @param n_trials Vector of number of trials per subject
+#' @param w_ini Vector of initial weights (default rep(0,4) if missing)
+#' @return Matrix of simulated choices
+simulate_eef <- function(params, outcomes, n_trials, w_ini = NULL) {
+  n_subj <- length(params$theta)
+  # Handle n_trials being scalar or vector
+  if (length(n_trials) == 1) n_trials <- rep(n_trials, n_subj)
+  max_trials <- ncol(outcomes)
+
+  choices_sim <- matrix(NA, nrow = n_subj, ncol = max_trials)
+
+  # Default w_ini if not provided
+  if (is.null(w_ini)) {
+    w_ini <- rep(0, 4)
+  }
+
+  for (s in 1:n_subj) {
+    # Initialize
+    exploit <- w_ini # Start with initial priors
+    explore <- rep(0, 4)
+
+    # Individual parameters
+    p_theta <- params$theta[s]
+    p_lambda <- params$lambda[s] # lambda_forget
+    p_phi <- params$phi[s]
+    p_cons <- params$cons[s]
+
+    for (t in 1:n_trials[s]) {
+      # Compute choice probabilities
+      # weight = exploit + explore
+      w <- exploit + explore
+      v <- p_cons * w
+      p_choice <- exp(v - max(v)) / sum(exp(v - max(v)))
+
+      # Sample choice
+      choices_sim[s, t] <- sample(1:4, size = 1, prob = p_choice)
+      chosen <- choices_sim[s, t]
+
+      # Get outcome
+      outcome <- outcomes[s, t]
+      gain <- max(outcome, 0)
+      loss <- max(-outcome, 0)
+
+      # Utility (symmetric power function)
+      util <- (gain + 0.001)^p_theta - (loss + 0.001)^p_theta
+
+      # Update Exploitation
+      # Chosen: (1-lambda)*old + util
+      # Unchosen: (1-lambda)*old
+      for (d in 1:4) {
+        if (d == chosen) {
+          exploit[d] <- (1 - p_lambda) * exploit[d] + util
+        } else {
+          exploit[d] <- (1 - p_lambda) * exploit[d]
+        }
+      }
+
+      # Update Exploration
+      # Chosen: reset to 0
+      # Unchosen: lambda*old + (1-lambda)*phi
+      for (d in 1:4) {
+        if (d == chosen) {
+          explore[d] <- 0
+        } else {
+          explore[d] <- (1 - p_lambda) * explore[d] + p_lambda * p_phi
+        }
       }
     }
   }
@@ -200,7 +273,7 @@ compute_block_proportions <- function(choices, block_size = 20) {
 #' Run posterior predictive check for a model
 #' @param fit_result Fitted model object
 #' @param observed_data JAGS data list with observed choices and outcomes
-#' @param model_name Model name ("pvl_delta", "vse", "orl")
+#' @param model_name Model name ("pvl_delta", "vse", "orl", "eef")
 #' @param n_sim Number of posterior samples to use for simulation
 #' @return List with PPC results
 run_ppc <- function(fit_result, observed_data, model_name, n_sim = 100) {
@@ -233,7 +306,6 @@ run_ppc <- function(fit_result, observed_data, model_name, n_sim = 100) {
 
       # Simulate
       sim_choices <- simulate_pvl_delta(params, observed_data$outcome, observed_data$T)
-
     } else if (model_name == "vse") {
       params <- list(
         A = samples_matrix[idx, grep("^A\\[", colnames(samples_matrix))],
@@ -248,7 +320,6 @@ run_ppc <- function(fit_result, observed_data, model_name, n_sim = 100) {
 
       # Simulate
       sim_choices <- simulate_vse(params, observed_data$outcome, observed_data$T)
-
     } else if (model_name == "orl") {
       params <- list(
         Arew = samples_matrix[idx, grep("^Arew\\[", colnames(samples_matrix))],
@@ -260,7 +331,22 @@ run_ppc <- function(fit_result, observed_data, model_name, n_sim = 100) {
 
       # Simulate
       sim_choices <- simulate_orl(params, observed_data$outcome, observed_data$T)
+    } else if (model_name == "eef") {
+      params <- list(
+        theta = samples_matrix[idx, grep("^theta\\[", colnames(samples_matrix))],
+        lambda = samples_matrix[idx, grep("^lambda_forget\\[", colnames(samples_matrix))],
+        phi = samples_matrix[idx, grep("^phi\\[", colnames(samples_matrix))],
+        cons = samples_matrix[idx, grep("^cons\\[", colnames(samples_matrix))]
+      )
 
+      # Handle w_ini
+      w_ini <- if (!is.null(observed_data$w_ini)) observed_data$w_ini else rep(0, 4)
+
+      # Handle trials
+      n_trials_vec <- if (!is.null(observed_data$Tsubj)) observed_data$Tsubj else observed_data$T
+
+      # Simulate
+      sim_choices <- simulate_eef(params, observed_data$outcome, n_trials_vec, w_ini)
     } else {
       warning(sprintf("PPC not implemented for model: %s", model_name))
       return(NULL)
@@ -293,7 +379,7 @@ run_ppc <- function(fit_result, observed_data, model_name, n_sim = 100) {
 
   # Check if observed falls within credible interval
   within_ci <- ppc_summary$observed >= ppc_summary$predicted_lower &
-               ppc_summary$observed <= ppc_summary$predicted_upper
+    ppc_summary$observed <= ppc_summary$predicted_upper
 
   cat(sprintf("\nObserved within 95%% CI: %d/4 decks\n", sum(within_ci)))
 
@@ -311,9 +397,9 @@ run_all_ppc <- function(models_dir = "analysis/outputs") {
   # Load data
   source("analysis/utils/load_data.R")
   source("analysis/utils/prepare_jags_data.R")
+  source("analysis/utils/prepare_eef_data.R")
 
   all_data <- load_all_igt_data()
-  jags_data <- prepare_jags_data(all_data)
 
   # Find fitted models
   fit_files <- list.files(models_dir, pattern = "_fit\\.rds$", full.names = TRUE)
@@ -327,10 +413,14 @@ run_all_ppc <- function(models_dir = "analysis/outputs") {
     fit <- readRDS(fit_file)
 
     # Prepare model-specific data
-    model_data <- prepare_jags_data_for_model(all_data, model_name)
+    if (model_name == "eef") {
+      model_data <- prepare_eef_jags_data_pooled(all_data)
+    } else {
+      model_data <- prepare_jags_data_for_model(all_data, model_name)
+    }
 
     # Run PPC (only for models with simulation functions)
-    if (model_name %in% c("pvl_delta", "vse", "orl")) {
+    if (model_name %in% c("pvl_delta", "vse", "orl", "eef")) {
       ppc_results[[model_name]] <- run_ppc(fit, model_data, model_name)
     }
   }
