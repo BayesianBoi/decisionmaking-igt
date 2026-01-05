@@ -1,4 +1,8 @@
 # ==============================================================================
+# Dependencies
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(R2jags, parallel, ggpubr, extraDistr, truncnorm)
+# ==============================================================================
 # Parameter Recovery: PVL-Delta Model
 # ==============================================================================
 #
@@ -16,24 +20,18 @@
 #   - No systematic bias (regression slope near 1)
 # ==============================================================================
 
-# Load required packages
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(R2jags, parallel, ggpubr, extraDistr, truncnorm)
-
 set.seed(69420)
 
 # ==============================================================================
 # Helper Functions
 # ==============================================================================
 
-# Maximum Posterior Density (point estimate from posterior distribution)
-# More robust than mean for skewed posteriors
+# Maximum Posterior Density
 MPD <- function(x) {
     density(x)$x[which(density(x)$y == max(density(x)$y))]
 }
 
 # Convert JAGS precision (lambda) to standard deviation (sigma)
-# JAGS uses precision (1/variance), we want SD for comparison
 precision_to_sd <- function(lambda) {
     1 / sqrt(lambda)
 }
@@ -44,7 +42,7 @@ source("analysis/utils/payoff_scheme.R")
 source("analysis/utils/plotting_utils.R")
 
 # ==============================================================================
-# Task Setup - Using gain/loss structure for deck-based indexing
+# Task Setup
 # ==============================================================================
 ntrials <- 100
 payoff_struct <- generate_modified_igt_payoff(ntrials, scale = TRUE)
@@ -55,64 +53,44 @@ cat("Payoff structure contains separate gain and loss matrices.\n\n")
 # ==============================================================================
 # Recovery Configuration
 # ==============================================================================
-niterations <- 100 # Number of recovery iterations
+# Allow command line args for testing (e.g., --test)
+args <- commandArgs(trailingOnly = TRUE)
+if ("--test" %in% args) {
+    niterations <- 2
+    cat(">>> RUNNING IN TEST MODE (2 iterations) <<<\n")
+} else {
+    niterations <- 100 # Standard recovery count
+}
+
 nsubs <- 48 # Number of simulated subjects (matches Ahn 2014 HC group size)
 ntrials_all <- rep(100, nsubs)
 
 # ==============================================================================
-# Storage Arrays for True and Recovered Parameters
-# ==============================================================================
-# Group-level means (mu)
-true_mu_w <- array(NA, c(niterations))
-true_mu_A <- array(NA, c(niterations))
-true_mu_theta <- array(NA, c(niterations))
-true_mu_a <- array(NA, c(niterations))
-
-infer_mu_w <- array(NA, c(niterations))
-infer_mu_A <- array(NA, c(niterations))
-infer_mu_theta <- array(NA, c(niterations))
-infer_mu_a <- array(NA, c(niterations))
-
-# Group-level standard deviations (sigma)
-# Note: JAGS estimates precision (lambda), we convert to sigma for comparison
-true_sigma_w <- array(NA, c(niterations))
-true_sigma_A <- array(NA, c(niterations))
-true_sigma_theta <- array(NA, c(niterations))
-true_sigma_a <- array(NA, c(niterations))
-
-infer_sigma_w <- array(NA, c(niterations))
-infer_sigma_A <- array(NA, c(niterations))
-infer_sigma_theta <- array(NA, c(niterations))
-infer_sigma_a <- array(NA, c(niterations))
-
-# ==============================================================================
-# Main Recovery Loop
+# Main Recovery Loop (Parallelized)
 # ==============================================================================
 start_time <- Sys.time()
-cat("Starting PVL-Delta Parameter Recovery...\n")
-cat("Configuration: ", niterations, " iterations x ", nsubs, " subjects\n\n")
+n_cores <- parallel::detectCores() - 1
+if (n_cores < 1) n_cores <- 1
 
-for (i in 1:niterations) {
+cat("Starting PVL-Delta Parameter Recovery...\n")
+cat("Configuration: ", niterations, " iterations x ", nsubs, " subjects\n")
+cat("Running on", n_cores, "cores\n\n")
+
+# Wrapper function for a single recovery iteration
+run_iteration <- function(i) {
     # -------------------------------------------------------------------------
     # Step 1: Generate True Parameters
     # -------------------------------------------------------------------------
-    # Draw group-level means and SDs from plausible ranges
-    # These ranges are informed by prior literature
-
-    # Loss aversion (w): typically 1.5-2.5 in healthy adults
-    mu_w <- runif(1, 0.5, 2.5)
+    mu_w <- runif(1, 0.5, 2.5) # Loss aversion
     sigma_w <- runif(1, 0.1, 0.3)
 
-    # Outcome sensitivity (A): typically 0.3-0.8
-    mu_A <- runif(1, 0.2, 0.8)
+    mu_A <- runif(1, 0.2, 0.8) # Outcome sensitivity
     sigma_A <- runif(1, 0.05, 0.15)
 
-    # Inverse temperature (theta): controls choice consistency
-    mu_theta <- runif(1, 0.5, 2.0)
+    mu_theta <- runif(1, 0.5, 2.0) # Inverse temperature
     sigma_theta <- runif(1, 0.1, 0.3)
 
-    # Learning rate (a): bounded 0-1
-    mu_a <- runif(1, 0.1, 0.5)
+    mu_a <- runif(1, 0.1, 0.5) # Learning rate
     sigma_a <- runif(1, 0.05, 0.15)
 
     # -------------------------------------------------------------------------
@@ -126,19 +104,17 @@ for (i in 1:niterations) {
         sigma_w = sigma_w, sigma_A = sigma_A, sigma_a = sigma_a, sigma_theta = sigma_theta
     )
 
-    x <- sim_data$x
-    X <- sim_data$X
-
     # -------------------------------------------------------------------------
     # Step 3: Fit JAGS Model
     # -------------------------------------------------------------------------
-    jags_data <- list("x" = x, "X" = X, "ntrials" = ntrials_all, "nsubs" = nsubs)
+    jags_data <- list("x" = sim_data$x, "X" = sim_data$X, "ntrials" = ntrials_all, "nsubs" = nsubs)
     params <- c(
         "mu_w", "mu_A", "mu_theta", "mu_a",
         "lambda_w", "lambda_A", "lambda_theta", "lambda_a"
     )
 
-    samples <- jags.parallel(
+    # Use standard jags() inside parallel worker to avoid nested parallel conflicts
+    samples <- jags(
         data = jags_data,
         inits = NULL,
         parameters.to.save = params,
@@ -146,7 +122,8 @@ for (i in 1:niterations) {
         n.chains = 3,
         n.iter = 3000,
         n.burnin = 1000,
-        n.thin = 1
+        n.thin = 1,
+        progress.bar = "none" # Suppress output
     )
 
     # -------------------------------------------------------------------------
@@ -154,34 +131,42 @@ for (i in 1:niterations) {
     # -------------------------------------------------------------------------
     Y <- samples$BUGSoutput$sims.list
 
-    # Store true values
-    true_mu_w[i] <- mu_w
-    true_mu_A[i] <- mu_A
-    true_mu_theta[i] <- mu_theta
-    true_mu_a[i] <- mu_a
+    # Return list of results
+    list(
+        # True
+        true_mu_w = mu_w, true_mu_A = mu_A, true_mu_theta = mu_theta, true_mu_a = mu_a,
+        true_sigma_w = sigma_w, true_sigma_A = sigma_A, true_sigma_theta = sigma_theta, true_sigma_a = sigma_a,
 
-    true_sigma_w[i] <- sigma_w
-    true_sigma_A[i] <- sigma_A
-    true_sigma_theta[i] <- sigma_theta
-    true_sigma_a[i] <- sigma_a
+        # Inferred (Means)
+        infer_mu_w = MPD(Y$mu_w), infer_mu_A = MPD(Y$mu_A),
+        infer_mu_theta = MPD(Y$mu_theta), infer_mu_a = MPD(Y$mu_a),
 
-    # Extract MPD from posteriors (means)
-    infer_mu_w[i] <- MPD(Y$mu_w)
-    infer_mu_A[i] <- MPD(Y$mu_A)
-    infer_mu_theta[i] <- MPD(Y$mu_theta)
-    infer_mu_a[i] <- MPD(Y$mu_a)
-
-    # Extract MPD and convert precision to SD
-    infer_sigma_w[i] <- precision_to_sd(MPD(Y$lambda_w))
-    infer_sigma_A[i] <- precision_to_sd(MPD(Y$lambda_A))
-    infer_sigma_theta[i] <- precision_to_sd(MPD(Y$lambda_theta))
-    infer_sigma_a[i] <- precision_to_sd(MPD(Y$lambda_a))
-
-    cat("Iteration", i, "of", niterations, "complete\n")
+        # Inferred (SDs)
+        infer_sigma_w = precision_to_sd(MPD(Y$lambda_w)),
+        infer_sigma_A = precision_to_sd(MPD(Y$lambda_A)),
+        infer_sigma_theta = precision_to_sd(MPD(Y$lambda_theta)),
+        infer_sigma_a = precision_to_sd(MPD(Y$lambda_a))
+    )
 }
 
+# Run Parallel Loop
+results_list <- mclapply(1:niterations, run_iteration, mc.cores = n_cores, mc.set.seed = TRUE)
+
+cat("Simulation complete. Processing results...\n")
+
+# Unpack results
+true_mu_w <- sapply(results_list, function(x) x$true_mu_w)
+true_mu_A <- sapply(results_list, function(x) x$true_mu_A)
+true_mu_theta <- sapply(results_list, function(x) x$true_mu_theta)
+true_mu_a <- sapply(results_list, function(x) x$true_mu_a)
+
+infer_mu_w <- sapply(results_list, function(x) x$infer_mu_w)
+infer_mu_A <- sapply(results_list, function(x) x$infer_mu_A)
+infer_mu_theta <- sapply(results_list, function(x) x$infer_mu_theta)
+infer_mu_a <- sapply(results_list, function(x) x$infer_mu_a)
+
 end_time <- Sys.time()
-cat("\nTotal time:", round(difftime(end_time, start_time, units = "mins"), 1), "minutes\n")
+cat("Total time:", round(difftime(end_time, start_time, units = "mins"), 1), "minutes\n")
 
 # ==============================================================================
 # Plotting Results
@@ -199,7 +184,7 @@ ggsave(file.path(output_dir, "recovery_pvl_delta.png"), final_plot,
     width = 12, height = 10, dpi = 150
 )
 
-cat("\nRecovery plot saved to:", file.path(output_dir, "recovery_pvl_delta.png"), "\n")
+cat("Recovery plot saved to:", file.path(output_dir, "recovery_pvl_delta.png"), "\n")
 
 # Print correlation summary
 cat("\n=== Recovery Correlations ===\n")
