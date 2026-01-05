@@ -169,6 +169,26 @@ end_time <- Sys.time()
 cat("Total time:", round(difftime(end_time, start_time, units = "mins"), 1), "minutes\n")
 
 # ==============================================================================
+# Save Results (RDS & CSV)
+# ==============================================================================
+output_dir_data <- "analysis/outputs/recovery"
+dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
+
+# Save full list (includes all parameters and true values)
+saveRDS(results_list, file.path(output_dir_data, "recovery_pvl_delta.rds"))
+
+# Create summary CSV for means
+df_summary <- data.frame(
+    true_mu_w = true_mu_w, infer_mu_w = infer_mu_w,
+    true_mu_A = true_mu_A, infer_mu_A = infer_mu_A,
+    true_mu_theta = true_mu_theta, infer_mu_theta = infer_mu_theta,
+    true_mu_a = true_mu_a, infer_mu_a = infer_mu_a
+)
+write.csv(df_summary, file.path(output_dir_data, "recovery_pvl_delta.csv"), row.names = FALSE)
+
+cat("Results saved to:", output_dir_data, "\n")
+
+# ==============================================================================
 # Plotting Results
 # ==============================================================================
 pl1 <- plot_recovery(true_mu_w, infer_mu_w, "mu_w (Loss Aversion)")

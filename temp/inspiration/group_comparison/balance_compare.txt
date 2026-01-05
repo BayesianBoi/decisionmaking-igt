@@ -1,0 +1,41 @@
+model {
+
+  ###### Priors ################
+  alpha ~  dnorm(0,1)
+  mu ~ dnorm(0,1)
+
+  #variability between subjects
+  Glambda ~ dgamma(.1,.1) 
+  
+  #variability between trials
+  #Slambda ~ dgamma(.1,.1)
+
+  ##############################
+  
+  for (s in 1:nsubs_ctr) {
+
+    #variability between trials
+    Slambda_ctr[s] ~ dgamma(1,1) 
+
+    #Smu_ctr[s] ~ dnorm((mu + (alpha/2)),Glambda)
+    #xcum_ctr[s,100] ~ dnorm(Smu_ctr[s],Slambda_ctr[s])
+  
+    xcum_ctr[s,100] ~ dnorm((mu + (alpha/2)),Glambda)
+  
+  }
+
+  for (s in 1:nsubs_opi) {
+
+    #variability between trials
+    Slambda_opi[s] ~ dgamma(1,1) 
+
+    #Smu_opi[s] ~ dnorm((mu - (alpha/2)),Glambda)
+    #xcum_opi[s,100] ~ dnorm(Smu_opi[s],Slambda_opi[s])
+    
+    xcum_opi[s,100] ~ dnorm((mu + (alpha/2)),Glambda)
+
+  
+  }
+
+
+}
