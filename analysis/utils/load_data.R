@@ -1,5 +1,8 @@
 # Load and harmonize IGT data from multiple sources
 # Run: source("analysis/utils/load_data.R")
+#
+# Datasets: Ahn et al. (2014)
+# Note: Fridberg (2010) and other datasets removed from analysis.
 
 #' Load Ahn et al. (2014) data
 #' @param group One of "HC", "Amph", "Hero"
@@ -22,93 +25,22 @@ load_ahn_2014 <- function(group = "HC") {
   return(dat_std)
 }
 
-#' Load Fridberg et al. (2010) data
-#' @param group One of "HC", "Cbis"
-#' @return Data frame with standardized columns
-load_fridberg_2010 <- function(group = "HC") {
-  file_path <- sprintf("data/raw/Fridberg_2010/IGTdata_%s.txt", group)
-  dat <- read.table(file_path, header = TRUE)
-
-  # Standardize column names
-  dat_std <- data.frame(
-    subj = dat$subjID,
-    trial = dat$trial,
-    choice = dat$deck,
-    gain = dat$gain,
-    loss = dat$loss,
-    net = dat$gain - abs(dat$loss),
-    study = paste0("Fridberg2010_", group)
-  )
-
-  return(dat_std)
-}
-
-#' Load Steingroever et al. (2014) data
-#' @param n_trials One of 95, 100, 150
-#' @return Data frame with standardized columns
-load_steingroever_2014 <- function(n_trials = 95) {
-  # Load wide format data
-  choice <- read.table(sprintf("data/raw/Steingroever_2014/choice_%d.txt", n_trials),
-    header = TRUE, check.names = FALSE, stringsAsFactors = FALSE
-  )
-  wi <- read.table(sprintf("data/raw/Steingroever_2014/wi_%d.txt", n_trials),
-    header = TRUE, check.names = FALSE, stringsAsFactors = FALSE
-  )
-  lo <- read.table(sprintf("data/raw/Steingroever_2014/lo_%d.txt", n_trials),
-    header = TRUE, check.names = FALSE, stringsAsFactors = FALSE
-  )
-
-  # Get number of subjects
-  n_subj <- nrow(choice)
-
-  # Initialize list to store long format data
-  dat_list <- list()
-
-  for (i in 1:n_subj) {
-    # Get subject ID from first column
-    subj_label <- as.character(choice[i, 1])
-    subj_id <- as.numeric(gsub("Subj_", "", subj_label))
-
-    # Extract trials for this subject (columns 2 onwards)
-    choices <- as.numeric(choice[i, -1])
-    gains <- as.numeric(wi[i, -1])
-    losses <- as.numeric(lo[i, -1])
-
-    # Actual number of trials (should match n_trials)
-    actual_trials <- length(choices)
-
-    # Create data frame for this subject
-    dat_list[[i]] <- data.frame(
-      subj = subj_id,
-      trial = 1:actual_trials,
-      choice = choices,
-      gain = gains,
-      loss = losses,
-      net = gains - abs(losses),
-      study = sprintf("Steingroever2014_%d", n_trials)
-    )
-  }
-
-  # Combine all subjects
-  dat_std <- do.call(rbind, dat_list)
-
-  return(dat_std)
-}
-
 #' Load all IGT datasets
 #' @return Data frame with all studies combined
 load_all_igt_data <- function() {
-  # Load all datasets
+  # Load all datasets (Ahn 2014)
   datasets <- list(
     load_ahn_2014("HC"),
     load_ahn_2014("Amph"),
-    load_ahn_2014("Hero"),
-    load_fridberg_2010("HC"),
-    load_fridberg_2010("Cbis"),
-    load_steingroever_2014(95),
-    load_steingroever_2014(100),
-    load_steingroever_2014(150)
+    load_ahn_2014("Hero")
   )
+
+  # Remove NULL entries (missing datasets)
+  datasets <- datasets[!sapply(datasets, is.null)]
+
+  if (length(datasets) == 0) {
+    stop("No data could be loaded! Check data directory.")
+  }
 
   # Combine all datasets
   all_data <- do.call(rbind, datasets)

@@ -3,22 +3,25 @@
 
 library(coda)
 
-#' Simulate choice data from PVL-Delta model
-#' @param params List with A, alpha, cons, lambda
+#' Simulate choice data from PVL-Delta model (using reference naming: a, A, theta, w)
+#' @param params List with a, A, theta, w
 #' @param outcomes Matrix of outcomes (subj x trial)
 #' @param n_trials Number of trials per subject
 #' @return Matrix of simulated choices
 simulate_pvl_delta <- function(params, outcomes, n_trials) {
-  n_subj <- length(params$A)
-  choices_sim <- matrix(NA, nrow = n_subj, ncol = n_trials)
+  n_subj <- length(params$a)
+  choices_sim <- matrix(NA, nrow = n_subj, ncol = ncol(outcomes))
+
+  # Handle n_trials being scalar or vector
+  if (length(n_trials) == 1) n_trials <- rep(n_trials, n_subj)
 
   for (s in 1:n_subj) {
     # Initialize expected values
     ev <- rep(0, 4)
 
-    for (t in 1:n_trials) {
+    for (t in 1:n_trials[s]) {
       # Compute choice probabilities (matching JAGS model formulation)
-      v <- params$cons[s] * ev
+      v <- params$theta[s] * ev
       p_choice <- exp(v - max(v)) / sum(exp(v - max(v)))
 
       # Sample choice
@@ -27,70 +30,20 @@ simulate_pvl_delta <- function(params, outcomes, n_trials) {
       # Get outcome for chosen deck
       outcome <- outcomes[s, t]
 
-      # Compute utility
+      # Compute utility using A (sensitivity) and w (loss aversion)
       if (outcome >= 0) {
-        util <- outcome^params$alpha[s]
+        util <- outcome^params$A[s]
       } else {
-        util <- -params$lambda[s] * abs(outcome)^params$alpha[s]
+        util <- -params$w[s] * abs(outcome)^params$A[s]
       }
 
-      # Update expected value
+      # Update expected value using a (learning rate)
       chosen <- choices_sim[s, t]
-      ev[chosen] <- ev[chosen] + params$A[s] * (util - ev[chosen])
+      ev[chosen] <- ev[chosen] + params$a[s] * (util - ev[chosen])
     }
   }
 
   return(choices_sim)
-}
-
-#' Simulate choice data from VSE model
-#' @param params List with A, alpha, cons, lambda, epP, epN, K, w
-#' @param outcomes Matrix of outcomes (subj x trial)
-#' @param n_trials Number of trials per subject
-#' @return Matrix of simulated choices
-simulate_vse <- function(params, outcomes, n_trials) {
-  n_subj <- length(params$A)
-  choices_sim <- matrix(NA, nrow = n_subj, ncol = n_trials)
-
-  for (s in 1:n_subj) {
-    # Initialize expected values and perseverance
-    ev <- rep(0, 4)
-    pers <- rep(0, 4)
-
-    for (t in 1:n_trials) {
-      # Compute choice probabilities (matching JAGS model formulation)
-      combined <- ev * params$w[s] + pers * (1 - params$w[s])
-      v <- params$cons[s] * combined
-      p_choice <- exp(v - max(v)) / sum(exp(v - max(v)))
-
-      # Sample choice
-      choices_sim[s, t] <- sample(1:4, size = 1, prob = p_choice)
-
-      # Get outcome for chosen deck
-      outcome <- outcomes[s, t]
-
-      # Compute utility
-      if (outcome >= 0) {
-        util <- outcome^params$alpha[s]
-      } else {
-        util <- -params$lambda[s] * abs(outcome)^params$alpha[s]
-      }
-
-      # Update expected value (chosen deck only)
-      chosen <- choices_sim[s, t]
-      ev[chosen] <- ev[chosen] + params$A[s] * (util - ev[chosen])
-
-      # Update perseverance (matching JAGS formulation)
-      pers_boost <- ifelse(outcome >= 0, params$epP[s], params$epN[s])
-      pers[chosen] <- pers[chosen] * params$K[s] + pers_boost
-      for (d in setdiff(1:4, chosen)) {
-        pers[d] <- pers[d] * params$K[s]
-      }
-    }
-  }
-
-  return(choices_sim)
-}
 
 #' Simulate choice data from ORL model
 #' @param params List with Arew, Apun, K, betaF, betaP
@@ -99,7 +52,10 @@ simulate_vse <- function(params, outcomes, n_trials) {
 #' @return Matrix of simulated choices
 simulate_orl <- function(params, outcomes, n_trials) {
   n_subj <- length(params$Arew)
-  choices_sim <- matrix(NA, nrow = n_subj, ncol = n_trials)
+  choices_sim <- matrix(NA, nrow = n_subj, ncol = ncol(outcomes))
+
+  # Handle n_trials being scalar or vector
+  if (length(n_trials) == 1) n_trials <- rep(n_trials, n_subj)
 
   for (s in 1:n_subj) {
     # Initialize
@@ -107,7 +63,7 @@ simulate_orl <- function(params, outcomes, n_trials) {
     ef <- rep(0, 4)
     pers <- rep(0, 4)
 
-    for (t in 1:n_trials) {
+    for (t in 1:n_trials[s]) {
       # Compute choice probabilities
       util_combined <- ev + ef * params$betaF[s] + pers * params$betaP[s]
       p_choice <- exp(util_combined - max(util_combined)) / sum(exp(util_combined - max(util_combined)))
@@ -273,7 +229,7 @@ compute_block_proportions <- function(choices, block_size = 20) {
 #' Run posterior predictive check for a model
 #' @param fit_result Fitted model object
 #' @param observed_data JAGS data list with observed choices and outcomes
-#' @param model_name Model name ("pvl_delta", "vse", "orl", "eef")
+#' @param model_name Model name ("pvl_delta", "orl", "eef")
 #' @param n_sim Number of posterior samples to use for simulation
 #' @return List with PPC results
 run_ppc <- function(fit_result, observed_data, model_name, n_sim = 100) {
@@ -298,28 +254,14 @@ run_ppc <- function(fit_result, observed_data, model_name, n_sim = 100) {
     # Extract parameters for this posterior sample
     if (model_name == "pvl_delta") {
       params <- list(
+        a = samples_matrix[idx, grep("^a\\[", colnames(samples_matrix))],
         A = samples_matrix[idx, grep("^A\\[", colnames(samples_matrix))],
-        alpha = samples_matrix[idx, grep("^alpha\\[", colnames(samples_matrix))],
-        cons = samples_matrix[idx, grep("^cons\\[", colnames(samples_matrix))],
-        lambda = samples_matrix[idx, grep("^lambda\\[", colnames(samples_matrix))]
-      )
-
-      # Simulate
-      sim_choices <- simulate_pvl_delta(params, observed_data$outcome, observed_data$T)
-    } else if (model_name == "vse") {
-      params <- list(
-        A = samples_matrix[idx, grep("^A\\[", colnames(samples_matrix))],
-        alpha = samples_matrix[idx, grep("^alpha\\[", colnames(samples_matrix))],
-        cons = samples_matrix[idx, grep("^cons\\[", colnames(samples_matrix))],
-        lambda = samples_matrix[idx, grep("^lambda\\[", colnames(samples_matrix))],
-        epP = samples_matrix[idx, grep("^epP\\[", colnames(samples_matrix))],
-        epN = samples_matrix[idx, grep("^epN\\[", colnames(samples_matrix))],
-        K = samples_matrix[idx, grep("^K\\[", colnames(samples_matrix))],
+        theta = samples_matrix[idx, grep("^theta\\[", colnames(samples_matrix))],
         w = samples_matrix[idx, grep("^w\\[", colnames(samples_matrix))]
       )
 
       # Simulate
-      sim_choices <- simulate_vse(params, observed_data$outcome, observed_data$T)
+      sim_choices <- simulate_pvl_delta(params, observed_data$outcome, observed_data$Tsubj)
     } else if (model_name == "orl") {
       params <- list(
         Arew = samples_matrix[idx, grep("^Arew\\[", colnames(samples_matrix))],
@@ -330,7 +272,7 @@ run_ppc <- function(fit_result, observed_data, model_name, n_sim = 100) {
       )
 
       # Simulate
-      sim_choices <- simulate_orl(params, observed_data$outcome, observed_data$T)
+      sim_choices <- simulate_orl(params, observed_data$outcome, observed_data$Tsubj)
     } else if (model_name == "eef") {
       params <- list(
         theta = samples_matrix[idx, grep("^theta\\[", colnames(samples_matrix))],
@@ -420,7 +362,7 @@ run_all_ppc <- function(models_dir = "analysis/outputs") {
     }
 
     # Run PPC (only for models with simulation functions)
-    if (model_name %in% c("pvl_delta", "vse", "orl", "eef")) {
+    if (model_name %in% c("pvl_delta", "orl", "eef")) {
       ppc_results[[model_name]] <- run_ppc(fit, model_data, model_name)
     }
   }

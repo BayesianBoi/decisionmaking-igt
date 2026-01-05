@@ -1,0 +1,124 @@
+model {
+  # ============================================================================
+  # PVL-Delta Joint Comparison Model
+  # ============================================================================
+  # Purpose: Estimate difference between two groups (G1, G2)
+  # Structure:
+  #   mu_param    = Grand Mean
+  #   alpha_param = Difference (G2 - G1)
+  #   Group 1 Mean = mu - alpha/2
+  #   Group 2 Mean = mu + alpha/2
+  # ============================================================================
+
+  # --- Priors for Grand Means (mu) & Differences (alpha) ---
+  
+  # 1. Loss Aversion (w)
+  mu_w    ~ dnorm(1, 1)   T(0, 5) # Grand Mean Prior
+  alpha_w ~ dnorm(0, 1)           # Difference Prior (Centered on 0)
+  
+  # 2. Shape Parameter (A)
+  mu_A    ~ dnorm(0.5, 1) T(0, 1)
+  alpha_A ~ dnorm(0, 1)
+  
+  # 3. Consistency (theta)
+  mu_theta    ~ dnorm(1, 1) T(0, 5)
+  alpha_theta ~ dnorm(0, 1)
+  
+  # 4. Learning Rate (a)
+  mu_a    ~ dnorm(0.5, 1) T(0, 1)
+  alpha_a ~ dnorm(0, 1)
+  
+  # --- Priors for Group-Level Precision (homogenous across groups for simplicity, or separate?) ---
+  # Inspiration uses separate precision for each group?
+  # Analysis of ORL_compare.txt suggests: "lambda_a_rew_ctr", "lambda_a_rew_opi".
+  # Yes, separate precisions allowed.
+  
+  # Group 1 Precision
+  lambda_w_g1     ~ dgamma(1, 0.1)
+  lambda_A_g1     ~ dgamma(1, 0.1)
+  lambda_theta_g1 ~ dgamma(1, 0.1)
+  lambda_a_g1     ~ dgamma(1, 0.1)
+  
+  # Group 2 Precision
+  lambda_w_g2     ~ dgamma(1, 0.1)
+  lambda_A_g2     ~ dgamma(1, 0.1)
+  lambda_theta_g2 ~ dgamma(1, 0.1)
+  lambda_a_g2     ~ dgamma(1, 0.1)
+
+  # ============================================================================
+  # GROUP 1 LOOP
+  # ============================================================================
+  for (s in 1:nsubs_g1) {
+    # Subject Parameters (Centered on mu - alpha/2)
+    w_g1[s]     ~ dnorm(mu_w - alpha_w/2, lambda_w_g1) T(0, 5)
+    A_g1[s]     ~ dnorm(mu_A - alpha_A/2, lambda_A_g1) T(0, 1)
+    theta_g1[s] ~ dnorm(mu_theta - alpha_theta/2, lambda_theta_g1) T(0, 5)
+    a_g1[s]     ~ dnorm(mu_a - alpha_a/2, lambda_a_g1) T(0, 1)
+    
+    # --- Model Logic (PVL-Delta) ---
+    for (t in 1:ntrials_g1[s]) {
+      # Raw Outcomes (PVL uses raw)
+      u_g1[s,t] <- ifelse(X_g1[s,t] < 0, 
+                          -w_g1[s] * abs(X_g1[s,t])^A_g1[s], 
+                          abs(X_g1[s,t])^A_g1[s])
+    }
+
+    # Initialize EV
+    Ev_g1[s,1,1] <- 0
+    Ev_g1[s,1,2] <- 0
+    Ev_g1[s,1,3] <- 0
+    Ev_g1[s,1,4] <- 0
+    
+    for (t in 2:ntrials_g1[s]) {
+      # Delta Learning
+      for (d in 1:4) {
+        Ev_g1[s,t,d] <- ifelse(d == x_g1[s,t-1],
+                               Ev_g1[s,t-1,d] + a_g1[s] * (u_g1[s,t-1] - Ev_g1[s,t-1,d]),
+                               Ev_g1[s,t-1,d])
+      }
+      
+      # Softmax
+      for (d in 1:4) {
+        exp_p_g1[s,t,d] <- exp(theta_g1[s] * Ev_g1[s,t,d])
+      }
+      
+      # Choice
+      x_g1[s,t] ~ dcat(exp_p_g1[s,t,] / sum(exp_p_g1[s,t,]))
+    }
+  }
+
+  # ============================================================================
+  # GROUP 2 LOOP
+  # ============================================================================
+  for (s in 1:nsubs_g2) {
+    # Subject Parameters (Centered on mu + alpha/2)
+    w_g2[s]     ~ dnorm(mu_w + alpha_w/2, lambda_w_g2) T(0, 5)
+    A_g2[s]     ~ dnorm(mu_A + alpha_A/2, lambda_A_g2) T(0, 1)
+    theta_g2[s] ~ dnorm(mu_theta + alpha_theta/2, lambda_theta_g2) T(0, 5)
+    a_g2[s]     ~ dnorm(mu_a + alpha_a/2, lambda_a_g2) T(0, 1)
+    
+    # --- Model Logic (Identical to G1) ---
+    for (t in 1:ntrials_g2[s]) {
+      u_g2[s,t] <- ifelse(X_g2[s,t] < 0, 
+                          -w_g2[s] * abs(X_g2[s,t])^A_g2[s], 
+                          abs(X_g2[s,t])^A_g2[s])
+    }
+
+    Ev_g2[s,1,1] <- 0
+    Ev_g2[s,1,2] <- 0
+    Ev_g2[s,1,3] <- 0
+    Ev_g2[s,1,4] <- 0
+    
+    for (t in 2:ntrials_g2[s]) {
+      for (d in 1:4) {
+        Ev_g2[s,t,d] <- ifelse(d == x_g2[s,t-1],
+                               Ev_g2[s,t-1,d] + a_g2[s] * (u_g2[s,t-1] - Ev_g2[s,t-1,d]),
+                               Ev_g2[s,t-1,d])
+      }
+      for (d in 1:4) {
+        exp_p_g2[s,t,d] <- exp(theta_g2[s] * Ev_g2[s,t,d])
+      }
+      x_g2[s,t] ~ dcat(exp_p_g2[s,t,] / sum(exp_p_g2[s,t,]))
+    }
+  }
+}

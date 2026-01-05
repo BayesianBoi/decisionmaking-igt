@@ -1,0 +1,151 @@
+model {
+  # ============================================================================
+  # ORL Comparison Model
+  # ============================================================================
+  
+  # --- Priors ---
+  # a_rew
+  mu_a_rew    ~ dnorm(0.5, 1) T(0, 1)
+  alpha_a_rew ~ dnorm(0, 1)
+  
+  # a_pun
+  mu_a_pun    ~ dnorm(0.5, 1) T(0, 1)
+  alpha_a_pun ~ dnorm(0, 1)
+  
+  # K (Perseverance Decay)
+  mu_K    ~ dnorm(1, 1) T(0, 5)
+  alpha_K ~ dnorm(0, 1)
+  
+  # theta (Sensitivity) -- ORL typically estimates this too
+  mu_theta    ~ dnorm(1, 1) T(0, 5)
+  alpha_theta ~ dnorm(0, 1)
+  
+  # omega_f (Frequency Weight)
+  mu_omega_f    ~ dnorm(0, 1)
+  alpha_omega_f ~ dnorm(0, 1)
+  
+  # omega_p (Perseverance Weight)
+  mu_omega_p    ~ dnorm(0, 1)
+  alpha_omega_p ~ dnorm(0, 1)
+  
+  # Precisions
+  lambda_a_rew_g1 ~ dgamma(1, 0.1)
+  lambda_a_pun_g1 ~ dgamma(1, 0.1)
+  lambda_K_g1     ~ dgamma(1, 0.1)
+  lambda_theta_g1 ~ dgamma(1, 0.1)
+  lambda_omega_f_g1 ~ dgamma(1, 0.1)
+  lambda_omega_p_g1 ~ dgamma(1, 0.1)
+  
+  lambda_a_rew_g2 ~ dgamma(1, 0.1)
+  lambda_a_pun_g2 ~ dgamma(1, 0.1)
+  lambda_K_g2     ~ dgamma(1, 0.1)
+  lambda_theta_g2 ~ dgamma(1, 0.1)
+  lambda_omega_f_g2 ~ dgamma(1, 0.1)
+  lambda_omega_p_g2 ~ dgamma(1, 0.1)
+
+  # ============================================================================
+  # GROUP 1
+  # ============================================================================
+  for (s in 1:nsubs_g1) {
+    a_rew_g1[s] ~ dnorm(mu_a_rew - alpha_a_rew/2, lambda_a_rew_g1) T(0, 1)
+    a_pun_g1[s] ~ dnorm(mu_a_pun - alpha_a_pun/2, lambda_a_pun_g1) T(0, 1)
+    K_g1[s]     ~ dnorm(mu_K - alpha_K/2, lambda_K_g1) T(0, 5)
+    theta_g1[s] ~ dnorm(mu_theta - alpha_theta/2, lambda_theta_g1) T(0, 5)
+    omega_f_g1[s] ~ dnorm(mu_omega_f - alpha_omega_f/2, lambda_omega_f_g1)
+    omega_p_g1[s] ~ dnorm(mu_omega_p - alpha_omega_p/2, lambda_omega_p_g1)
+    
+    # Init
+    for (d in 1:4) {
+      Ev_g1[s,1,d] <- 0
+      Ef_g1[s,1,d] <- 0
+      PS_g1[s,1,d] <- 1
+    }
+    
+    for (t in 2:ntrials_g1[s]) {
+      signX_g1[s,t] <- ifelse(X_g1[s,t-1] < 0, -1, 1)
+      
+      for (d in 1:4) {
+        # Ev Update
+        Ev_g1[s,t,d] <- ifelse(d == x_g1[s,t-1],
+          ifelse(X_g1[s,t-1] >= 0,
+                 Ev_g1[s,t-1,d] + a_rew_g1[s] * (X_g1[s,t-1] - Ev_g1[s,t-1,d]),
+                 Ev_g1[s,t-1,d] + a_pun_g1[s] * (X_g1[s,t-1] - Ev_g1[s,t-1,d])),
+          Ev_g1[s,t-1,d])
+          
+        # Ef Update (Complex)
+        # 1. Chosen Deck
+        Ef_cho_g1[s,t,d] <- ifelse(X_g1[s,t-1] >= 0,
+                                   Ef_g1[s,t-1,d] + a_rew_g1[s] * (signX_g1[s,t] - Ef_g1[s,t-1,d]),
+                                   Ef_g1[s,t-1,d] + a_pun_g1[s] * (signX_g1[s,t] - Ef_g1[s,t-1,d]))
+        # 2. Unchosen Deck
+        Ef_not_g1[s,t,d] <- ifelse(X_g1[s,t-1] >= 0,
+                                   Ef_g1[s,t-1,d] + a_pun_g1[s] * (-(signX_g1[s,t]/3) - Ef_g1[s,t-1,d]),
+                                   Ef_g1[s,t-1,d] + a_rew_g1[s] * (-(signX_g1[s,t]/3) - Ef_g1[s,t-1,d]))
+        
+        Ef_g1[s,t,d] <- ifelse(d == x_g1[s,t-1], Ef_cho_g1[s,t,d], Ef_not_g1[s,t,d])
+        
+        # PS Update
+        PS_g1[s,t,d] <- ifelse(x_g1[s,t-1] == d, 
+                               1 / (1 + K_g1[s]), 
+                               PS_g1[s,t-1,d] / (1 + K_g1[s]))
+                               
+        # Value
+        V_g1[s,t,d] <- Ev_g1[s,t,d] + Ef_g1[s,t,d] * omega_f_g1[s] + PS_g1[s,t,d] * omega_p_g1[s]
+        exp_p_g1[s,t,d] <- exp(theta_g1[s] * V_g1[s,t,d])
+      }
+      x_g1[s,t] ~ dcat(exp_p_g1[s,t,] / sum(exp_p_g1[s,t,]))
+    }
+  }
+
+  # ============================================================================
+  # GROUP 2
+  # ============================================================================
+  for (s in 1:nsubs_g2) {
+    a_rew_g2[s] ~ dnorm(mu_a_rew + alpha_a_rew/2, lambda_a_rew_g2) T(0, 1)
+    a_pun_g2[s] ~ dnorm(mu_a_pun + alpha_a_pun/2, lambda_a_pun_g2) T(0, 1)
+    K_g2[s]     ~ dnorm(mu_K + alpha_K/2, lambda_K_g2) T(0, 5)
+    theta_g2[s] ~ dnorm(mu_theta + alpha_theta/2, lambda_theta_g2) T(0, 5)
+    omega_f_g2[s] ~ dnorm(mu_omega_f + alpha_omega_f/2, lambda_omega_f_g2)
+    omega_p_g2[s] ~ dnorm(mu_omega_p + alpha_omega_p/2, lambda_omega_p_g2)
+    
+    # Init
+    for (d in 1:4) {
+      Ev_g2[s,1,d] <- 0
+      Ef_g2[s,1,d] <- 0
+      PS_g2[s,1,d] <- 1
+    }
+    
+    for (t in 2:ntrials_g2[s]) {
+      signX_g2[s,t] <- ifelse(X_g2[s,t-1] < 0, -1, 1)
+      
+      for (d in 1:4) {
+        # Ev Update
+        Ev_g2[s,t,d] <- ifelse(d == x_g2[s,t-1],
+          ifelse(X_g2[s,t-1] >= 0,
+                 Ev_g2[s,t-1,d] + a_rew_g2[s] * (X_g2[s,t-1] - Ev_g2[s,t-1,d]),
+                 Ev_g2[s,t-1,d] + a_pun_g2[s] * (X_g2[s,t-1] - Ev_g2[s,t-1,d])),
+          Ev_g2[s,t-1,d])
+          
+        # Ef Update
+        Ef_cho_g2[s,t,d] <- ifelse(X_g2[s,t-1] >= 0,
+                                   Ef_g2[s,t-1,d] + a_rew_g2[s] * (signX_g2[s,t] - Ef_g2[s,t-1,d]),
+                                   Ef_g2[s,t-1,d] + a_pun_g2[s] * (signX_g2[s,t] - Ef_g2[s,t-1,d]))
+        Ef_not_g2[s,t,d] <- ifelse(X_g2[s,t-1] >= 0,
+                                   Ef_g2[s,t-1,d] + a_pun_g2[s] * (-(signX_g2[s,t]/3) - Ef_g2[s,t-1,d]),
+                                   Ef_g2[s,t-1,d] + a_rew_g2[s] * (-(signX_g2[s,t]/3) - Ef_g2[s,t-1,d]))
+        
+        Ef_g2[s,t,d] <- ifelse(d == x_g2[s,t-1], Ef_cho_g2[s,t,d], Ef_not_g2[s,t,d])
+        
+        # PS
+        PS_g2[s,t,d] <- ifelse(x_g2[s,t-1] == d, 
+                               1 / (1 + K_g2[s]), 
+                               PS_g2[s,t-1,d] / (1 + K_g2[s]))
+                               
+        # V
+        V_g2[s,t,d] <- Ev_g2[s,t,d] + Ef_g2[s,t,d] * omega_f_g2[s] + PS_g2[s,t,d] * omega_p_g2[s]
+        exp_p_g2[s,t,d] <- exp(theta_g2[s] * V_g2[s,t,d])
+      }
+      x_g2[s,t] ~ dcat(exp_p_g2[s,t,] / sum(exp_p_g2[s,t,]))
+    }
+  }
+}

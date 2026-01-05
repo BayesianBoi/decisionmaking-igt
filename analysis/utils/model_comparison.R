@@ -111,14 +111,14 @@ get_n_params <- function(model_name, n_subj) {
     # Group: 4 mu + 4 sigma
     # Subject: 4 params x n_subj
     return(8 + 4 * n_subj)
-  } else if (model_name == "vse") {
-    # Group: 8 mu + 8 sigma
-    # Subject: 8 params x n_subj
-    return(16 + 8 * n_subj)
   } else if (model_name == "orl") {
     # Group: 5 mu + 5 sigma
     # Subject: 5 params x n_subj
     return(10 + 5 * n_subj)
+  } else if (model_name == "eef") {
+    # Group: 4 mu + 4 sigma
+    # Subject: 4 params x n_subj
+    return(8 + 4 * n_subj)
   } else {
     return(NA)
   }
@@ -161,7 +161,7 @@ compare_models <- function(models_dir = "analysis/outputs") {
 
     # Compute log-likelihood (approximate using mean parameters)
     # This is simplified - full implementation would compute for each sample
-    mean_loglik <- NA  # Placeholder
+    mean_loglik <- NA # Placeholder
 
     comparison_results[[model_name]] <- data.frame(
       model = model_name,
@@ -204,8 +204,8 @@ write_comparison_report <- function(comparison_df, output_dir = "analysis/output
     "## Models Compared",
     "",
     "1. **PVL-Delta**: Prospect-Valence Learning with delta-rule updating",
-    "2. **VSE**: Value + Sequential Exploration (PVL-Delta with perseverance)",
-    "3. **ORL**: Outcome Representation Learning",
+    "2. **ORL**: Outcome Representation Learning",
+    "3. **EEF**: Exploitation-Exploration with Forgetting",
     "",
     "## Model Statistics",
     "",

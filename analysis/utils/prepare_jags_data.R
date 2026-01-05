@@ -83,7 +83,7 @@ create_sign_outcome <- function(outcome_mat) {
 
 #' Prepare JAGS data with additional variables for specific models
 #' @param dat Data frame with harmonized IGT data
-#' @param model One of "pvl_delta", "vse", "orl"
+#' @param model One of \"pvl_delta\", \"orl\", \"eef\"
 #' @param study_filter Optional vector of study names to include
 #' @return List formatted for JAGS input with model-specific variables
 prepare_jags_data_for_model <- function(dat, model, study_filter = NULL) {

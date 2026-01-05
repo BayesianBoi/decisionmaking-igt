@@ -5,69 +5,32 @@ library(rjags)
 library(coda)
 
 #' Sample parameters from prior distributions
-#' @param model_name Model name ("pvl_delta", "vse", "orl")
+#' @param model_name Model name ("pvl_delta", "orl")
 #' @param n_subj Number of subjects to simulate
 #' @return List of sampled parameters
 sample_from_prior <- function(model_name, n_subj = 20) {
-
   if (model_name == "pvl_delta") {
-    # Sample group-level parameters
-    mu_A <- runif(1, 0, 1)
-    mu_alpha <- runif(1, 0, 2)
-    mu_cons <- runif(1, 0, 5)
-    mu_lambda <- runif(1, 0, 10)
+    # Sample group-level parameters (using reference naming: a, A, theta, w)
+    mu_a <- runif(1, 0, 1) # Learning rate
+    mu_A <- runif(1, 0, 2) # Outcome sensitivity
+    mu_theta <- runif(1, 0, 5) # Choice consistency
+    mu_w <- runif(1, 0, 10) # Loss aversion
 
-    sigma_A <- runif(1, 0, 0.3)
-    sigma_alpha <- runif(1, 0, 0.5)
-    sigma_cons <- runif(1, 0, 1)
-    sigma_lambda <- runif(1, 0, 2)
+    sigma_a <- runif(1, 0, 0.3)
+    sigma_A <- runif(1, 0, 0.5)
+    sigma_theta <- runif(1, 0, 1)
+    sigma_w <- runif(1, 0, 2)
 
     # Sample subject-level parameters
-    A <- pmin(pmax(rnorm(n_subj, mu_A, sigma_A), 0), 1)
-    alpha <- pmax(rnorm(n_subj, mu_alpha, sigma_alpha), 0.01)
-    cons <- pmax(rnorm(n_subj, mu_cons, sigma_cons), 0.01)
-    lambda <- pmax(rnorm(n_subj, mu_lambda, sigma_lambda), 0.01)
+    a <- pmin(pmax(rnorm(n_subj, mu_a, sigma_a), 0), 1)
+    A <- pmax(rnorm(n_subj, mu_A, sigma_A), 0.01)
+    theta <- pmax(rnorm(n_subj, mu_theta, sigma_theta), 0.01)
+    w <- pmax(rnorm(n_subj, mu_w, sigma_w), 0.01)
 
     return(list(
-      A = A, alpha = alpha, cons = cons, lambda = lambda,
-      mu_A = mu_A, mu_alpha = mu_alpha, mu_cons = mu_cons, mu_lambda = mu_lambda
+      a = a, A = A, theta = theta, w = w,
+      mu_a = mu_a, mu_A = mu_A, mu_theta = mu_theta, mu_w = mu_w
     ))
-
-  } else if (model_name == "vse") {
-    mu_A <- runif(1, 0, 1)
-    mu_alpha <- runif(1, 0, 2)
-    mu_cons <- runif(1, 0, 5)
-    mu_lambda <- runif(1, 0, 10)
-    mu_epP <- runif(1, 0, 2)
-    mu_epN <- runif(1, 0, 2)
-    mu_K <- runif(1, 0, 1)
-    mu_w <- runif(1, 0, 1)
-
-    sigma_A <- runif(1, 0, 0.3)
-    sigma_alpha <- runif(1, 0, 0.5)
-    sigma_cons <- runif(1, 0, 1)
-    sigma_lambda <- runif(1, 0, 2)
-    sigma_epP <- runif(1, 0, 0.5)
-    sigma_epN <- runif(1, 0, 0.5)
-    sigma_K <- runif(1, 0, 0.2)
-    sigma_w <- runif(1, 0, 0.2)
-
-    A <- pmin(pmax(rnorm(n_subj, mu_A, sigma_A), 0), 1)
-    alpha <- pmax(rnorm(n_subj, mu_alpha, sigma_alpha), 0.01)
-    cons <- pmax(rnorm(n_subj, mu_cons, sigma_cons), 0.01)
-    lambda <- pmax(rnorm(n_subj, mu_lambda, sigma_lambda), 0.01)
-    epP <- pmax(rnorm(n_subj, mu_epP, sigma_epP), 0.01)
-    epN <- pmax(rnorm(n_subj, mu_epN, sigma_epN), 0.01)
-    K <- pmin(pmax(rnorm(n_subj, mu_K, sigma_K), 0), 1)
-    w <- pmin(pmax(rnorm(n_subj, mu_w, sigma_w), 0), 1)
-
-    return(list(
-      A = A, alpha = alpha, cons = cons, lambda = lambda,
-      epP = epP, epN = epN, K = K, w = w,
-      mu_A = mu_A, mu_alpha = mu_alpha, mu_cons = mu_cons, mu_lambda = mu_lambda,
-      mu_epP = mu_epP, mu_epN = mu_epN, mu_K = mu_K, mu_w = mu_w
-    ))
-
   } else if (model_name == "orl") {
     mu_Arew <- runif(1, 0, 1)
     mu_Apun <- runif(1, 0, 1)
@@ -128,13 +91,13 @@ generate_igt_outcomes <- function(n_trials = 100) {
   return(deck_outcomes)
 }
 
-#' Simulate data from PVL-Delta model (as in existing code)
-#' @param params Parameter list
+#' Simulate data from PVL-Delta model (using reference naming: a, A, theta, w)
+#' @param params Parameter list with a, A, theta, w
 #' @param deck_outcomes IGT deck structure
 #' @param n_trials Number of trials
 #' @return List with simulated choices and outcomes
 simulate_data_pvl_delta <- function(params, deck_outcomes, n_trials) {
-  n_subj <- length(params$A)
+  n_subj <- length(params$a)
 
   choices <- matrix(NA, nrow = n_subj, ncol = n_trials)
   outcomes <- matrix(NA, nrow = n_subj, ncol = n_trials)
@@ -144,7 +107,7 @@ simulate_data_pvl_delta <- function(params, deck_outcomes, n_trials) {
 
     for (t in 1:n_trials) {
       # Choice probabilities (matching JAGS model formulation)
-      v <- params$cons[s] * ev
+      v <- params$theta[s] * ev
       exp_util <- exp(v)
       p_choice <- exp_util / sum(exp_util)
 
@@ -155,72 +118,18 @@ simulate_data_pvl_delta <- function(params, deck_outcomes, n_trials) {
       # Get outcome
       gain <- deck_outcomes[t, 1, choice]
       loss <- deck_outcomes[t, 2, choice]
-      outcome <- (gain + loss) / 100  # Scale
+      outcome <- (gain + loss) / 100 # Scale
       outcomes[s, t] <- outcome
 
-      # Compute utility
+      # Compute utility using A (sensitivity) and w (loss aversion)
       if (outcome >= 0) {
-        util <- outcome^params$alpha[s]
+        util <- outcome^params$A[s]
       } else {
-        util <- -params$lambda[s] * abs(outcome)^params$alpha[s]
+        util <- -params$w[s] * abs(outcome)^params$A[s]
       }
 
-      # Update EV
-      ev[choice] <- ev[choice] + params$A[s] * (util - ev[choice])
-    }
-  }
-
-  return(list(choices = choices, outcomes = outcomes))
-}
-
-#' Simulate data from VSE model
-#' @param params Parameter list
-#' @param deck_outcomes IGT deck structure
-#' @param n_trials Number of trials
-#' @return List with simulated choices and outcomes
-simulate_data_vse <- function(params, deck_outcomes, n_trials) {
-  n_subj <- length(params$A)
-
-  choices <- matrix(NA, nrow = n_subj, ncol = n_trials)
-  outcomes <- matrix(NA, nrow = n_subj, ncol = n_trials)
-
-  for (s in 1:n_subj) {
-    ev <- rep(0, 4)
-    pers <- rep(0, 4)
-
-    for (t in 1:n_trials) {
-      # Combined value (matching JAGS formulation)
-      combined <- ev * params$w[s] + pers * (1 - params$w[s])
-      v <- params$cons[s] * combined
-      exp_util <- exp(v)
-      p_choice <- exp_util / sum(exp_util)
-
-      # Sample choice
-      choice <- sample(1:4, size = 1, prob = p_choice)
-      choices[s, t] <- choice
-
-      # Get outcome
-      gain <- deck_outcomes[t, 1, choice]
-      loss <- deck_outcomes[t, 2, choice]
-      outcome <- (gain + loss) / 100  # Scale
-      outcomes[s, t] <- outcome
-
-      # Compute utility
-      if (outcome >= 0) {
-        util <- outcome^params$alpha[s]
-      } else {
-        util <- -params$lambda[s] * abs(outcome)^params$alpha[s]
-      }
-
-      # Update EV (chosen deck only)
-      ev[choice] <- ev[choice] + params$A[s] * (util - ev[choice])
-
-      # Update perseverance (all decks)
-      pers_boost <- ifelse(outcome >= 0, params$epP[s], params$epN[s])
-      pers[choice] <- pers[choice] * params$K[s] + pers_boost
-      for (d in setdiff(1:4, choice)) {
-        pers[d] <- pers[d] * params$K[s]
-      }
+      # Update EV using a (learning rate)
+      ev[choice] <- ev[choice] + params$a[s] * (util - ev[choice])
     }
   }
 
@@ -256,7 +165,7 @@ simulate_data_orl <- function(params, deck_outcomes, n_trials) {
       # Get outcome
       gain <- deck_outcomes[t, 1, choice]
       loss <- deck_outcomes[t, 2, choice]
-      outcome <- (gain + loss) / 100  # Scale
+      outcome <- (gain + loss) / 100 # Scale
       outcomes[s, t] <- outcome
 
       # Sign of outcome
@@ -302,7 +211,6 @@ run_parameter_recovery <- function(model_name = "pvl_delta",
                                    n_subj = 20,
                                    n_trials = 100,
                                    output_dir = "analysis/outputs") {
-
   cat(sprintf("=== Parameter Recovery: %s ===\n\n", model_name))
 
   # Step 1: Sample true parameters
@@ -315,8 +223,6 @@ run_parameter_recovery <- function(model_name = "pvl_delta",
 
   if (model_name == "pvl_delta") {
     sim_data <- simulate_data_pvl_delta(true_params, deck_outcomes, n_trials)
-  } else if (model_name == "vse") {
-    sim_data <- simulate_data_vse(true_params, deck_outcomes, n_trials)
   } else if (model_name == "orl") {
     sim_data <- simulate_data_orl(true_params, deck_outcomes, n_trials)
   } else {
@@ -350,9 +256,7 @@ run_parameter_recovery <- function(model_name = "pvl_delta",
 
   # Monitor parameters
   if (model_name == "pvl_delta") {
-    params_to_monitor <- c("A", "alpha", "cons", "lambda")
-  } else if (model_name == "vse") {
-    params_to_monitor <- c("A", "alpha", "cons", "lambda", "epP", "epN", "K", "w")
+    params_to_monitor <- c("a", "A", "theta", "w")
   } else if (model_name == "orl") {
     params_to_monitor <- c("Arew", "Apun", "K", "betaF", "betaP")
   }

@@ -1,0 +1,7 @@
+source("analysis/utils/load_data.R")
+cat("Loading data...\n")
+dat <- load_all_igt_data()
+cat("Rows:", nrow(dat), "\n")
+cat("Columns:", colnames(dat), "\n")
+print(head(dat))
+cat("Unique subjects:", length(unique(dat$subj_unique)), "\n")
