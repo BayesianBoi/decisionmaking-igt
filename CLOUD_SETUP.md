@@ -7,20 +7,33 @@ Access your cloud terminal and clone/pull the repository:
 
 ```bash
 # If not cloned yet
-git clone https://github.com/YourUsername/decision_making.git
-cd decision_making
+git clone https://github.com/BayesianBoi/decisionmaking-igt.git
+cd decisionmaking-igt
 
 # If already cloned
-cd decision_making
+cd decisionmaking-igt
 git pull origin main
 ```
 
-## 2. Install System Dependencies (Ubuntu/Debian)
-Ensure JAGS is installed on the system:
+## 2. Install System Dependencies (JAGS)
 
+### Option A: Conda (Recommended for Cloud)
+If you are in a Conda environment (likely):
 ```bash
+conda install -c conda-forge jags
+```
+
+### Option B: Ubuntu/Debian (apt)
+If `apt-get` cannot find `jags`:
+```bash
+sudo add-apt-repository universe
 sudo apt-get update
 sudo apt-get install -y jags
+```
+
+### Option C: Fedora/CentOS/RHEL
+```bash
+sudo dnf install jags
 ```
 
 ## 3. Install R Packages
