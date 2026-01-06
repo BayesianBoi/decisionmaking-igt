@@ -1,8 +1,11 @@
 # Plotting Utilities for Decision Making Analysis
 # ==============================================================================
 
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(ggplot2, bayestestR, dplyr, tidyr, ggpubr)
+# Dependencies
+required_packages <- c("ggplot2", "bayestestR", "dplyr", "tidyr", "ggpubr")
+new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
+if (length(new_packages)) install.packages(new_packages, repos = "http://cran.us.r-project.org")
+lapply(required_packages, library, character.only = TRUE)
 
 #' Plot Parameter Recovery (Scatter Plot)
 #'

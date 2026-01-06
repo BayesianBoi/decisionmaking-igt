@@ -1,7 +1,10 @@
 # ==============================================================================
 # Dependencies
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(extraDistr, truncnorm)
+# Dependencies
+required_packages <- c("extraDistr", "truncnorm")
+new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
+if (length(new_packages)) install.packages(new_packages, repos = "http://cran.us.r-project.org")
+lapply(required_packages, library, character.only = TRUE)
 # ==============================================================================
 # EEF (Explore-Exploit with Forgetting) Model Simulation
 # ==============================================================================

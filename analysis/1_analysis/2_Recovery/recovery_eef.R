@@ -1,7 +1,10 @@
 # ==============================================================================
 # Dependencies
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(R2jags, parallel, ggpubr, extraDistr, truncnorm)
+# Dependencies
+required_packages <- c("R2jags", "parallel", "ggpubr", "extraDistr", "truncnorm")
+new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
+if (length(new_packages)) install.packages(new_packages, repos = "http://cran.us.r-project.org")
+lapply(required_packages, library, character.only = TRUE)
 # ==============================================================================
 # Parameter Recovery: EEF (Explore-Exploit with Forgetting) Model
 # ==============================================================================
@@ -74,70 +77,87 @@ run_iteration <- function(i) {
     # -------------------------------------------------------------------------
     # Step 1: Generate True Parameters
     # -------------------------------------------------------------------------
-    mu_theta <- runif(1, 0.2, 0.8)
-    sigma_theta <- runif(1, 0.05, 0.15)
+    tryCatch(
+        {
+            mu_theta <- runif(1, 0.2, 0.8)
+            sigma_theta <- runif(1, 0.05, 0.15)
 
-    mu_lambda <- runif(1, 0.2, 0.8)
-    sigma_lambda <- runif(1, 0.05, 0.15)
+            mu_lambda <- runif(1, 0.2, 0.8)
+            sigma_lambda <- runif(1, 0.05, 0.15)
 
-    mu_phi <- runif(1, -2, 2)
-    sigma_phi <- runif(1, 0.1, 0.5)
+            mu_phi <- runif(1, -2, 2)
+            sigma_phi <- runif(1, 0.1, 0.5)
 
-    mu_cons <- runif(1, 1, 3)
-    sigma_cons <- runif(1, 0.1, 0.5)
+            mu_cons <- runif(1, 1, 3)
+            sigma_cons <- runif(1, 0.1, 0.5)
 
-    # -------------------------------------------------------------------------
-    # Step 2: Simulate Data
-    # -------------------------------------------------------------------------
-    sim_data <- simulation_eef(
-        payoff_struct = payoff_struct,
-        nsubs = nsubs,
-        ntrials = ntrials_all,
-        mu_theta = mu_theta, mu_lambda = mu_lambda,
-        mu_phi = mu_phi, mu_cons = mu_cons,
-        sigma_theta = sigma_theta, sigma_lambda = sigma_lambda,
-        sigma_phi = sigma_phi, sigma_cons = sigma_cons
-    )
+            # -------------------------------------------------------------------------
+            # Step 2: Simulate Data
+            # -------------------------------------------------------------------------
+            sim_data <- simulation_eef(
+                payoff_struct = payoff_struct,
+                nsubs = nsubs,
+                ntrials = ntrials_all,
+                mu_theta = mu_theta, mu_lambda = mu_lambda,
+                mu_phi = mu_phi, mu_cons = mu_cons,
+                sigma_theta = sigma_theta, sigma_lambda = sigma_lambda,
+                sigma_phi = sigma_phi, sigma_cons = sigma_cons
+            )
 
-    # -------------------------------------------------------------------------
-    # Step 3: Fit JAGS Model
-    # -------------------------------------------------------------------------
-    jags_data <- list("x" = sim_data$x, "X" = sim_data$X, "ntrials" = ntrials_all, "nsubs" = nsubs)
+            # -------------------------------------------------------------------------
+            # Step 3: Fit JAGS Model
+            # -------------------------------------------------------------------------
+            jags_data <- list("x" = sim_data$x, "X" = sim_data$X, "ntrials" = ntrials_all, "nsubs" = nsubs)
 
-    params <- c(
-        "mu_theta", "mu_lambda", "mu_phi", "mu_cons",
-        "lambda_theta", "lambda_lambda", "lambda_phi", "lambda_cons"
-    )
+            params <- c(
+                "mu_theta", "mu_lambda", "mu_phi", "mu_cons",
+                "lambda_theta", "lambda_lambda", "lambda_phi", "lambda_cons"
+            )
 
-    samples <- jags(
-        data = jags_data,
-        inits = NULL,
-        parameters.to.save = params,
-        model.file = "analysis/models/eef.txt",
-        n.chains = 3,
-        n.iter = 3000,
-        n.burnin = 1000,
-        n.thin = 1,
-        progress.bar = "none"
-    )
+            samples <- jags(
+                data = jags_data,
+                inits = NULL,
+                parameters.to.save = params,
+                model.file = "analysis/models/eef.txt",
+                n.chains = 3,
+                n.iter = 3000,
+                n.burnin = 1000,
+                n.thin = 1,
+                progress.bar = "none"
+            )
 
-    # -------------------------------------------------------------------------
-    # Step 4: Extract Point Estimates
-    # -------------------------------------------------------------------------
-    Y <- samples$BUGSoutput$sims.list
+            # -------------------------------------------------------------------------
+            # Step 4: Extract Point Estimates
+            # -------------------------------------------------------------------------
+            Y <- samples$BUGSoutput$sims.list
 
-    list(
-        # True
-        true_mu_theta = mu_theta, true_mu_lambda = mu_lambda,
-        true_mu_phi = mu_phi, true_mu_cons = mu_cons,
+            list(
+                # True
+                true_mu_theta = mu_theta, true_mu_lambda = mu_lambda,
+                true_mu_phi = mu_phi, true_mu_cons = mu_cons,
 
-        # Inferred ( Means)
-        infer_mu_theta = MPD(Y$mu_theta), infer_mu_lambda = MPD(Y$mu_lambda),
-        infer_mu_phi = MPD(Y$mu_phi), infer_mu_cons = MPD(Y$mu_cons)
+                # Inferred ( Means)
+                infer_mu_theta = MPD(Y$mu_theta), infer_mu_lambda = MPD(Y$mu_lambda),
+                infer_mu_phi = MPD(Y$mu_phi), infer_mu_cons = MPD(Y$mu_cons)
+            )
+        },
+        error = function(e) {
+            cat("Error in iteration", i, ":", conditionMessage(e), "\n")
+            return(NULL)
+        }
     )
 }
 
 results_list <- mclapply(1:niterations, run_iteration, mc.cores = n_cores, mc.set.seed = TRUE)
+
+# Filter out failed iterations
+results_list <- results_list[!sapply(results_list, is.null)]
+
+if (length(results_list) == 0) {
+    stop("All iterations failed!")
+}
+
+cat("Successful iterations for analysis:", length(results_list), "/", niterations, "\n")
 
 cat("Simulation complete. Processing results...\n")
 

@@ -6,11 +6,11 @@ model {
   mu_phi ~ dnorm(0,1)T(-5,5)
   mu_cons ~ dnorm(0,1)T(0,5)
   
-  # Precision priors (matching PVL/ORL style)
-  lambda_theta ~ dgamma(0.01,0.01)
-  lambda_lambda ~ dgamma(0.01,0.01)
-  lambda_phi ~ dgamma(0.01,0.01)
-  lambda_cons ~ dgamma(0.01,0.01)
+  # Precision priors (matching PVL-Delta for consistency and stability)
+  lambda_theta ~ dgamma(1, 0.5)
+  lambda_lambda ~ dgamma(1, 0.5)
+  lambda_phi ~ dgamma(1, 0.5)
+  lambda_cons ~ dgamma(1, 0.5)
   
   for (s in 1:nsubs) {
     
