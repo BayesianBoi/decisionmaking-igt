@@ -1,11 +1,11 @@
 # ==============================================================================
-# EEF Parameter Recovery - Batch Worker Script
+# PVL-Delta Parameter Recovery - Batch Worker Script
 # ==============================================================================
-# This script runs a subset of recovery iterations.
+# This script runs a subset of recovery iterations for the PVL-Delta model.
 # It is designed to be run in parallel via tmux or another scheduler.
 #
 # Usage:
-#   Rscript recovery_eef_batch.R --seed 123 --iter 10 --output path/to/save.rds
+#   Rscript recovery_pvl_delta_batch.R --seed 123 --iter 10 --output path/to/save.rds
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -16,7 +16,7 @@ args <- commandArgs(trailingOnly = TRUE)
 # Default values
 seed <- NULL
 n_iter <- 5
-output_file <- "recovery_batch.rds"
+output_file <- "recovery_pvl_delta_batch.rds"
 
 # Simple argument parser
 for (i in seq_along(args)) {
@@ -28,7 +28,7 @@ for (i in seq_along(args)) {
 if (is.null(seed)) stop("Error: --seed argument is required.")
 
 cat("----------------------------------------------------------------\n")
-cat("EEF Recovery Batch Worker\n")
+cat("PVL-Delta Recovery Batch Worker\n")
 cat("Seed:", seed, "\n")
 cat("Iterations:", n_iter, "\n")
 cat("Output:", output_file, "\n")
@@ -45,10 +45,10 @@ invisible(lapply(required_packages, library, character.only = TRUE))
 
 # Source model and helper functions
 # (Assuming script is run from project root)
-source("analysis/1_analysis/2_Recovery/simulation_eef.R")
+source("analysis/1_analysis/2_Recovery/simulation_pvl_delta.R")
 source("analysis/utils/payoff_scheme.R")
 
-# helper helper
+# MPD helper (Maximum Posterior Density)
 MPD <- function(x) {
     if (all(is.na(x))) {
         return(NA)
@@ -73,29 +73,27 @@ for (i in 1:n_iter) {
     cat(sprintf("[%d/%d] Generating and fitting...\n", i, n_iter))
 
     # A. Generate True Parameters
-    mu_theta <- runif(1, 0.2, 0.8)
-    sigma_theta <- runif(1, 0.05, 0.15)
+    mu_w <- runif(1, 1, 3)
+    sigma_w <- runif(1, 0.2, 0.5)
 
-    mu_lambda <- runif(1, 0.2, 0.8)
-    sigma_lambda <- runif(1, 0.05, 0.15)
+    mu_A <- runif(1, 0.3, 0.8)
+    sigma_A <- runif(1, 0.1, 0.3)
 
-    mu_phi <- runif(1, -2, 2)
-    sigma_phi <- runif(1, 0.1, 0.5)
+    mu_a <- runif(1, 0.1, 0.5)
+    sigma_a <- runif(1, 0.05, 0.15)
 
-    mu_cons <- runif(1, 1, 3)
-    sigma_cons <- runif(1, 0.1, 0.5)
+    mu_theta <- runif(1, 0.5, 2.0)
+    sigma_theta <- runif(1, 0.1, 0.3)
 
     # B. Simulate Data
     sim_data <- tryCatch(
         {
-            simulation_eef(
+            hier_PVL_sim(
                 payoff_struct = payoff_struct,
                 nsubs = nsubs,
                 ntrials = ntrials_all,
-                mu_theta = mu_theta, mu_lambda = mu_lambda,
-                mu_phi = mu_phi, mu_cons = mu_cons,
-                sigma_theta = sigma_theta, sigma_lambda = sigma_lambda,
-                sigma_phi = sigma_phi, sigma_cons = sigma_cons
+                mu_w = mu_w, mu_A = mu_A, mu_a = mu_a, mu_theta = mu_theta,
+                sigma_w = sigma_w, sigma_A = sigma_A, sigma_a = sigma_a, sigma_theta = sigma_theta
             )
         },
         error = function(e) {
@@ -114,7 +112,10 @@ for (i in 1:n_iter) {
         "nsubs" = nsubs
     )
 
-    params <- c("mu_theta", "mu_lambda", "mu_phi", "mu_cons")
+    params <- c(
+        "mu_w", "mu_A", "mu_a", "mu_theta",
+        "lambda_w", "lambda_A", "lambda_a", "lambda_theta"
+    )
 
     # Use tryCatch for JAGS fitting
     fit_result <- tryCatch(
@@ -123,7 +124,7 @@ for (i in 1:n_iter) {
                 data = jags_data,
                 inits = NULL,
                 parameters.to.save = params,
-                model.file = "analysis/models/eef.txt",
+                model.file = "analysis/models/pvl_delta.txt",
                 n.chains = 3,
                 n.iter = 3000,
                 n.burnin = 1000,
@@ -152,34 +153,34 @@ for (i in 1:n_iter) {
 
         res <- list(
             # True Means
-            true_mu_theta = mu_theta, true_mu_lambda = mu_lambda,
-            true_mu_phi = mu_phi, true_mu_cons = mu_cons,
+            true_mu_w = mu_w, true_mu_A = mu_A,
+            true_mu_a = mu_a, true_mu_theta = mu_theta,
 
             # True Sigmas
-            true_sigma_theta = sigma_theta, true_sigma_lambda = sigma_lambda,
-            true_sigma_phi = sigma_phi, true_sigma_cons = sigma_cons,
+            true_sigma_w = sigma_w, true_sigma_A = sigma_A,
+            true_sigma_a = sigma_a, true_sigma_theta = sigma_theta,
 
-            # Inferred Means
-            infer_mu_theta = MPD(Y$mu_theta), infer_mu_lambda = MPD(Y$mu_lambda),
-            infer_mu_phi = MPD(Y$mu_phi), infer_mu_cons = MPD(Y$mu_cons),
+            # Inferred Means (MPD)
+            infer_mu_w = MPD(Y$mu_w), infer_mu_A = MPD(Y$mu_A),
+            infer_mu_a = MPD(Y$mu_a), infer_mu_theta = MPD(Y$mu_theta),
 
             # Inferred Sigmas (converted from precision lambda)
+            infer_sigma_w = MPD(1 / sqrt(Y$lambda_w)),
+            infer_sigma_A = MPD(1 / sqrt(Y$lambda_A)),
+            infer_sigma_a = MPD(1 / sqrt(Y$lambda_a)),
             infer_sigma_theta = MPD(1 / sqrt(Y$lambda_theta)),
-            infer_sigma_lambda = MPD(1 / sqrt(Y$lambda_lambda)),
-            infer_sigma_phi = MPD(1 / sqrt(Y$lambda_phi)),
-            infer_sigma_cons = MPD(1 / sqrt(Y$lambda_cons)),
 
             # 95% CI Lower (2.5%)
+            lower_mu_w = get_q("mu_w", "2.5%"),
+            lower_mu_A = get_q("mu_A", "2.5%"),
+            lower_mu_a = get_q("mu_a", "2.5%"),
             lower_mu_theta = get_q("mu_theta", "2.5%"),
-            lower_mu_lambda = get_q("mu_lambda", "2.5%"),
-            lower_mu_phi = get_q("mu_phi", "2.5%"),
-            lower_mu_cons = get_q("mu_cons", "2.5%"),
 
             # 95% CI Upper (97.5%)
-            upper_mu_theta = get_q("mu_theta", "97.5%"),
-            upper_mu_lambda = get_q("mu_lambda", "97.5%"),
-            upper_mu_phi = get_q("mu_phi", "97.5%"),
-            upper_mu_cons = get_q("mu_cons", "97.5%")
+            upper_mu_w = get_q("mu_w", "97.5%"),
+            upper_mu_A = get_q("mu_A", "97.5%"),
+            upper_mu_a = get_q("mu_a", "97.5%"),
+            upper_mu_theta = get_q("mu_theta", "97.5%")
         )
 
         results_list[[length(results_list) + 1]] <- res

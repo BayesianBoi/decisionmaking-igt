@@ -12,7 +12,7 @@
 SESSION_NAME="EEF_Recovery"
 NUM_JOBS=10             # Number of tmux panes (workers)
 ITERS_PER_JOB=10        # Iterations per worker (Total = NUM_JOBS * ITERS_PER_JOB = 100)
-OUTPUT_DIR="analysis/outputs/recovery/parts"
+OUTPUT_DIR="analysis/outputs/recovery/parts_eef"
 
 # Create output directory
 mkdir -p "$OUTPUT_DIR"

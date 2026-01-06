@@ -50,29 +50,59 @@ if (N == 0) stop("No valid data to process.")
 # ------------------------------------------------------------------------------
 # 3. Extract Vectors for Plotting
 # ------------------------------------------------------------------------------
-true_mu_theta <- sapply(combined_results, function(x) x$true_mu_theta)
-infer_mu_theta <- sapply(combined_results, function(x) x$infer_mu_theta)
-
-true_mu_lambda <- sapply(combined_results, function(x) x$true_mu_lambda)
-infer_mu_lambda <- sapply(combined_results, function(x) x$infer_mu_lambda)
-
-true_mu_phi <- sapply(combined_results, function(x) x$true_mu_phi)
-infer_mu_phi <- sapply(combined_results, function(x) x$infer_mu_phi)
-
-true_mu_cons <- sapply(combined_results, function(x) x$true_mu_cons)
-infer_mu_cons <- sapply(combined_results, function(x) x$infer_mu_cons)
 
 # ------------------------------------------------------------------------------
-# 4. Save Summary CSV
+# 5. Extract Vectors for Plotting (Means + Sigmas)
+# ------------------------------------------------------------------------------
+extract_param <- function(res_list, param_name) {
+    # Robust extraction: returns NA if param missing (e.g. old batch files)
+    sapply(res_list, function(x) if (!is.null(x[[param_name]])) x[[param_name]] else NA)
+}
+
+# Means
+true_mu_theta <- extract_param(combined_results, "true_mu_theta")
+infer_mu_theta <- extract_param(combined_results, "infer_mu_theta")
+
+true_mu_lambda <- extract_param(combined_results, "true_mu_lambda")
+infer_mu_lambda <- extract_param(combined_results, "infer_mu_lambda")
+
+true_mu_phi <- extract_param(combined_results, "true_mu_phi")
+infer_mu_phi <- extract_param(combined_results, "infer_mu_phi")
+
+true_mu_cons <- extract_param(combined_results, "true_mu_cons")
+infer_mu_cons <- extract_param(combined_results, "infer_mu_cons")
+
+# Sigmas
+true_sigma_theta <- extract_param(combined_results, "true_sigma_theta")
+infer_sigma_theta <- extract_param(combined_results, "infer_sigma_theta")
+
+true_sigma_lambda <- extract_param(combined_results, "true_sigma_lambda")
+infer_sigma_lambda <- extract_param(combined_results, "infer_sigma_lambda")
+
+true_sigma_phi <- extract_param(combined_results, "true_sigma_phi")
+infer_sigma_phi <- extract_param(combined_results, "infer_sigma_phi")
+
+true_sigma_cons <- extract_param(combined_results, "true_sigma_cons")
+infer_sigma_cons <- extract_param(combined_results, "infer_sigma_cons")
+
+# ------------------------------------------------------------------------------
+# 6. Save Summary CSV
 # ------------------------------------------------------------------------------
 output_dir <- "analysis/outputs/recovery"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 df_summary <- data.frame(
+    # Means
     true_mu_theta = true_mu_theta, infer_mu_theta = infer_mu_theta,
     true_mu_lambda = true_mu_lambda, infer_mu_lambda = infer_mu_lambda,
     true_mu_phi = true_mu_phi, infer_mu_phi = infer_mu_phi,
-    true_mu_cons = true_mu_cons, infer_mu_cons = infer_mu_cons
+    true_mu_cons = true_mu_cons, infer_mu_cons = infer_mu_cons,
+
+    # Sigmas
+    true_sigma_theta = true_sigma_theta, infer_sigma_theta = infer_sigma_theta,
+    true_sigma_lambda = true_sigma_lambda, infer_sigma_lambda = infer_sigma_lambda,
+    true_sigma_phi = true_sigma_phi, infer_sigma_phi = infer_sigma_phi,
+    true_sigma_cons = true_sigma_cons, infer_sigma_cons = infer_sigma_cons
 )
 
 csv_path <- file.path(output_dir, "recovery_eef.csv")
@@ -80,26 +110,91 @@ write.csv(df_summary, csv_path, row.names = FALSE)
 cat("Summary CSV saved to:", csv_path, "\n")
 
 # ------------------------------------------------------------------------------
-# 5. Generate Plots
+# 7. Generate Plots
 # ------------------------------------------------------------------------------
-cat("Generating plots...\n")
-
-p1 <- plot_recovery(true_mu_theta, infer_mu_theta, "Sensitivity (theta)")
-p2 <- plot_recovery(true_mu_lambda, infer_mu_lambda, "Decay Rate (lambda)")
-p3 <- plot_recovery(true_mu_phi, infer_mu_phi, "Exploration (phi)")
-p4 <- plot_recovery(true_mu_cons, infer_mu_cons, "Consistency (cons)")
-
-final_plot <- combine_plots(list(p1, p2, p3, p4), "EEF Parameter Recovery (Distributed)")
-
 plot_dir <- "analysis/plots/recovery"
 dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
-ggsave(file.path(plot_dir, "recovery_eef.png"), final_plot, width = 10, height = 8)
 
-cat("Recovery plot saved to:", file.path(plot_dir, "recovery_eef.png"), "\n")
+# --- Plot Means ---
+cat("Generating Mean plots...\n")
+p1 <- plot_recovery(true_mu_theta, infer_mu_theta, "Sensitivity (mu_theta)")
+p2 <- plot_recovery(true_mu_lambda, infer_mu_lambda, "Decay Rate (mu_lambda)")
+p3 <- plot_recovery(true_mu_phi, infer_mu_phi, "Exploration (mu_phi)")
+p4 <- plot_recovery(true_mu_cons, infer_mu_cons, "Consistency (mu_cons)")
 
-# Print correlations
-cat("\n=== Recovery Correlations ===\n")
-cat("mu_theta:  r =", round(cor(true_mu_theta, infer_mu_theta), 2), "\n")
-cat("mu_lambda: r =", round(cor(true_mu_lambda, infer_mu_lambda), 2), "\n")
-cat("mu_phi:    r =", round(cor(true_mu_phi, infer_mu_phi), 2), "\n")
-cat("mu_cons:   r =", round(cor(true_mu_cons, infer_mu_cons), 2), "\n")
+final_plot_means <- combine_plots(list(p1, p2, p3, p4), "EEF Parameter Recovery - MEANS")
+ggsave(file.path(plot_dir, "recovery_eef_means.png"), final_plot_means, width = 10, height = 8)
+cat("Means plot saved.\n")
+
+# --- Plot Sigmas ---
+cat("Generating Sigma plots...\n")
+# Filter out NAs for plotting (in case of mixed batch files)
+valid_idx <- !is.na(true_sigma_theta)
+if (sum(valid_idx) > 0) {
+    p5 <- plot_recovery(true_sigma_theta[valid_idx], infer_sigma_theta[valid_idx], "SD Sensitivity (sigma_theta)")
+    p6 <- plot_recovery(true_sigma_lambda[valid_idx], infer_sigma_lambda[valid_idx], "SD Decay Rate (sigma_lambda)")
+    p7 <- plot_recovery(true_sigma_phi[valid_idx], infer_sigma_phi[valid_idx], "SD Exploration (sigma_phi)")
+    p8 <- plot_recovery(true_sigma_cons[valid_idx], infer_sigma_cons[valid_idx], "SD Consistency (sigma_cons)")
+
+    final_plot_sigmas <- combine_plots(list(p5, p6, p7, p8), "EEF Parameter Recovery - SIGMAS")
+    ggsave(file.path(plot_dir, "recovery_eef_sigmas.png"), final_plot_sigmas, width = 10, height = 8)
+    cat("Sigmas plot saved.\n")
+
+    # Print correlations
+    cat("\n=== Recovery Correlations (Sigmas) ===\n")
+    cat("sigma_theta:  r =", round(cor(true_sigma_theta[valid_idx], infer_sigma_theta[valid_idx]), 2), "\n")
+    cat("sigma_lambda: r =", round(cor(true_sigma_lambda[valid_idx], infer_sigma_lambda[valid_idx]), 2), "\n")
+    cat("sigma_phi:    r =", round(cor(true_sigma_phi[valid_idx], infer_sigma_phi[valid_idx]), 2), "\n")
+    cat("sigma_cons:   r =", round(cor(true_sigma_cons[valid_idx], infer_sigma_cons[valid_idx]), 2), "\n")
+} else {
+    cat("No valid sigma data found (please re-run batch recovery).\n")
+}
+
+cat("\n=== Recovery Correlations (Means) ===\n")
+cat("mu_theta:  r =", round(cor(true_mu_theta, infer_mu_theta, use = "pairwise.complete.obs"), 2), "\n")
+cat("mu_lambda: r =", round(cor(true_mu_lambda, infer_mu_lambda, use = "pairwise.complete.obs"), 2), "\n")
+cat("mu_phi:    r =", round(cor(true_mu_phi, infer_mu_phi, use = "pairwise.complete.obs"), 2), "\n")
+cat("mu_cons:   r =", round(cor(true_mu_cons, infer_mu_cons, use = "pairwise.complete.obs"), 2), "\n")
+
+# Extract CIs
+lower_mu_theta <- extract_param(combined_results, "lower_mu_theta")
+upper_mu_theta <- extract_param(combined_results, "upper_mu_theta")
+lower_mu_lambda <- extract_param(combined_results, "lower_mu_lambda")
+upper_mu_lambda <- extract_param(combined_results, "upper_mu_lambda")
+lower_mu_phi <- extract_param(combined_results, "lower_mu_phi")
+upper_mu_phi <- extract_param(combined_results, "upper_mu_phi")
+lower_mu_cons <- extract_param(combined_results, "lower_mu_cons")
+upper_mu_cons <- extract_param(combined_results, "upper_mu_cons")
+
+# Helper to calc metrics
+calc_metrics <- function(true, infer, lower, upper) {
+    valid <- !is.na(true) & !is.na(lower) & !is.na(upper)
+    true <- true[valid]
+    infer <- infer[valid]
+    lower <- lower[valid]
+    upper <- upper[valid]
+
+    rmse <- sqrt(mean((true - infer)^2))
+    coverage <- mean(true >= lower & true <= upper) * 100
+    r <- cor(true, infer)
+    return(c(RMSE = rmse, Coverage = coverage, R = r))
+}
+
+# Print Coverage if available
+if (any(!is.na(lower_mu_theta))) {
+    cat("\n=== Recovery Performance Metrics (EEF) ===\n")
+    cat("parameter     | RMSE   | Coverage | Correlation\n")
+    cat("---------------------------------------------\n")
+    m1 <- calc_metrics(true_mu_theta, infer_mu_theta, lower_mu_theta, upper_mu_theta)
+    cat(sprintf("mu_theta      | %.3f  | %.1f%%   | %.3f\n", m1[1], m1[2], m1[3]))
+
+    m2 <- calc_metrics(true_mu_lambda, infer_mu_lambda, lower_mu_lambda, upper_mu_lambda)
+    cat(sprintf("mu_lambda     | %.3f  | %.1f%%   | %.3f\n", m2[1], m2[2], m2[3]))
+
+    m3 <- calc_metrics(true_mu_phi, infer_mu_phi, lower_mu_phi, upper_mu_phi)
+    cat(sprintf("mu_phi        | %.3f  | %.1f%%   | %.3f\n", m3[1], m3[2], m3[3]))
+
+    m4 <- calc_metrics(true_mu_cons, infer_mu_cons, lower_mu_cons, upper_mu_cons)
+    cat(sprintf("mu_cons       | %.3f  | %.1f%%   | %.3f\n", m4[1], m4[2], m4[3]))
+    cat("---------------------------------------------\n")
+}
