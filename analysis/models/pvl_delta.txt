@@ -22,7 +22,7 @@ model {
     w[s] ~ dnorm(mu_w, lambda_w)
     A[s] ~ dnorm(mu_A, lambda_A)
     theta[s] ~ dnorm(mu_theta, lambda_theta)T(0,)
-    a[s] ~ dnorm(mu_a, lambda_a)
+    a[s] ~ dnorm(mu_a, lambda_a)T(0,1)
    
     Ev[s,1,1] ~ dnorm(0,0.01)
     Ev[s,1,2] ~ dnorm(0,0.01)
