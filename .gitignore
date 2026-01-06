@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+.Rhistory
+
+# Temporary folders (not part of pipeline)
+temp/
+temp_logs/
+R/
+
+# Output files (regenerated on run)
+analysis/outputs/
+analysis/plots/
+
+# R build artifacts
+*.Rproj.user
+.Rproj.user/

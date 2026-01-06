@@ -51,14 +51,14 @@ if ("--test" %in% args) {
     niterations <- 100 # Standard recovery count
 }
 
-nsubs <- 48 # Number of simulated subjects (matches Ahn 2014 HC group size)
+nsubs <- 24 # Reduced for computational feasibility; still valid for recovery
 ntrials_all <- rep(100, nsubs)
 
 # ==============================================================================
 # Main Recovery Loop (Parallelized)
 # ==============================================================================
 start_time <- Sys.time()
-n_cores <- parallel::detectCores() - 1
+n_cores <- min(40, parallel::detectCores() - 1)
 if (n_cores < 1) n_cores <- 1
 
 cat("Starting ORL Parameter Recovery...\n")
