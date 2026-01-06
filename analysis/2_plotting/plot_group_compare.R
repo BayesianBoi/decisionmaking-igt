@@ -96,9 +96,9 @@ get_group_posterior <- function(param_name, group_name, mat, metadata) {
 message("Creating overlapping density plots...")
 
 # Parameters to compare (EEF model)
-params <- c("lambda_forget", "theta", "phi", "cons")
+params <- c("lambda", "theta", "phi", "cons")
 param_labels <- list(
-  "lambda_forget" = expression(lambda[forget]),
+  "lambda" = expression(lambda),
   "theta" = expression(theta),
   "phi" = expression(phi),
   "cons" = expression(c)
@@ -176,8 +176,8 @@ comparisons <- list(
   "Amphetamine vs HC" = c("Amphetamine", "HC")
 )
 
-# Focus on lambda_forget (forgetting rate)
-target_param <- "lambda_forget"
+# Focus on lambda (forgetting/learning rate)
+target_param <- "lambda"
 
 diff_plots <- list()
 diff_results <- list()
@@ -245,9 +245,9 @@ if (length(diff_results) > 0) {
     geom_errorbarh(aes(xmin = Lower, xmax = Upper), height = 0.2, color = "black", linewidth = 1) +
     geom_point(size = 4, color = "black") +
     labs(
-      title = expression(paste("Difference in Forgetting Rate (", lambda[forget], ")")),
+      title = expression(paste("Difference in Learning Rate (", lambda, ")")),
       subtitle = "Posterior Difference (Substance - Control)",
-      x = expression(paste(Delta, lambda[forget])),
+      x = expression(paste(Delta, lambda)),
       y = NULL
     ) +
     theme_publication()

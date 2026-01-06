@@ -41,6 +41,8 @@ Refined all posterior density and parameter plots to meet publication standards 
 ## 4. Key Files
 - **Recovery Scripts**: `analysis/1_analysis/2_Recovery/recovery_*.R`
 - **Plotting Utilities**: `analysis/utils/plotting_publication.R`
+- **LOO-CV**: `analysis/utils/loo_cv.R` (model comparison with loo package)
+- **Effect Sizes**: `analysis/utils/effect_size.R` (Cohen's d, probability of superiority)
 - **Verification Scripts**: 
   - `analysis/2_plotting/test_ppc_plots.R`
   - `analysis/2_plotting/test_param_estimation_plots.R`
@@ -48,4 +50,5 @@ Refined all posterior density and parameter plots to meet publication standards 
 ## 5. Next Steps
 1. **Run Full Analysis**: Execute the recovery and fitting scripts on the full dataset/cloud infrastructure.
 2. **Generate Final Figures**: Once `results/` are populated with real data, run the plotting scripts to generate the final PDFs.
-3. **Analyze Group Differences**: Use the validated `plot_group_compare.R` logic to assess clinical group differences.
+3. **Analyze Group Differences**: Use `compare_*.R` scripts and `effect_size.R` for clinical comparisons.
+4. **Model Comparison**: Run `loo_cv.R` to compare PVL-Delta, ORL, and EEF using LOO-CV.

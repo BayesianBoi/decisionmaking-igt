@@ -118,7 +118,7 @@ for (model in models) {
         } else if (model == "eef") {
             params <- list(
                 theta = mat[idx, grep("^theta\\[", colnames(mat))],
-                lambda = mat[idx, grep("^lambda_forget\\[", colnames(mat))],
+                lambda = mat[idx, grep("^lambda\\[", colnames(mat))],
                 phi = mat[idx, grep("^phi\\[", colnames(mat))],
                 cons = mat[idx, grep("^cons\\[", colnames(mat))]
             )

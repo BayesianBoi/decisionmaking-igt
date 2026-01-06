@@ -202,10 +202,10 @@ if (file.exists(eef_samples_file)) {
   mat <- as.matrix(samples)
 
   # Group-level parameters to plot
-  params <- c("mu_theta", "mu_lambda_forget", "mu_phi", "mu_cons")
+  params <- c("mu_theta", "mu_lambda", "mu_phi", "mu_cons")
   param_labels <- c(
     "mu_theta" = expression(mu[theta]),
-    "mu_lambda_forget" = expression(mu[lambda]),
+    "mu_lambda" = expression(mu[lambda]),
     "mu_phi" = expression(mu[phi]),
     "mu_cons" = expression(mu[c])
   )

@@ -133,7 +133,7 @@ simulate_eef <- function(params, outcomes, n_trials, w_ini = NULL) {
 
     # Individual parameters
     p_theta <- params$theta[s]
-    p_lambda <- params$lambda[s] # lambda_forget
+    p_lambda <- params$lambda[s] # learning/forgetting rate
     p_phi <- params$phi[s]
     p_cons <- params$cons[s]
 
@@ -277,7 +277,7 @@ run_ppc <- function(fit_result, observed_data, model_name, n_sim = 100) {
     } else if (model_name == "eef") {
       params <- list(
         theta = samples_matrix[idx, grep("^theta\\[", colnames(samples_matrix))],
-        lambda = samples_matrix[idx, grep("^lambda_forget\\[", colnames(samples_matrix))],
+        lambda = samples_matrix[idx, grep("^lambda\\[", colnames(samples_matrix))],
         phi = samples_matrix[idx, grep("^phi\\[", colnames(samples_matrix))],
         cons = samples_matrix[idx, grep("^cons\\[", colnames(samples_matrix))]
       )
