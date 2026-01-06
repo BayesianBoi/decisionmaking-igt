@@ -5,7 +5,7 @@
 # combines them, and generates the final recovery plots and summary CSV.
 #
 # Usage:
-#   Rscript combine_eef_batches.R
+#   a1
 # ==============================================================================
 
 # ------------------------------------------------------------------------------

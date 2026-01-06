@@ -12,8 +12,11 @@
 
 # 1. Setup
 # ------------------------------------------------------------------------------
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(R2jags, parallel)
+# Dependencies
+required_packages <- c("R2jags", "parallel")
+new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
+if (length(new_packages)) install.packages(new_packages, repos = "http://cran.us.r-project.org")
+invisible(lapply(required_packages, library, character.only = TRUE))
 
 set.seed(69420)
 
