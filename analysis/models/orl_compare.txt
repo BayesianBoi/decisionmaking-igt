@@ -47,10 +47,10 @@ model {
   # GROUP 1
   # ============================================================================
   for (s in 1:nsubs_g1) {
-    a_rew_g1[s] ~ dnorm(mu_a_rew - alpha_a_rew/2, lambda_a_rew_g1)
-    a_pun_g1[s] ~ dnorm(mu_a_pun - alpha_a_pun/2, lambda_a_pun_g1)
-    K_g1[s]     ~ dnorm(mu_K - alpha_K/2, lambda_K_g1)
-    theta_g1[s] ~ dnorm(mu_theta - alpha_theta/2, lambda_theta_g1)
+    a_rew_g1[s] ~ dnorm(mu_a_rew - alpha_a_rew/2, lambda_a_rew_g1)T(0,1)
+    a_pun_g1[s] ~ dnorm(mu_a_pun - alpha_a_pun/2, lambda_a_pun_g1)T(0,1)
+    K_g1[s]     ~ dnorm(mu_K - alpha_K/2, lambda_K_g1)T(0,)
+    theta_g1[s] ~ dnorm(mu_theta - alpha_theta/2, lambda_theta_g1)T(0,)
     omega_f_g1[s] ~ dnorm(mu_omega_f - alpha_omega_f/2, lambda_omega_f_g1)
     omega_p_g1[s] ~ dnorm(mu_omega_p - alpha_omega_p/2, lambda_omega_p_g1)
     
@@ -101,10 +101,10 @@ model {
   # GROUP 2
   # ============================================================================
   for (s in 1:nsubs_g2) {
-    a_rew_g2[s] ~ dnorm(mu_a_rew + alpha_a_rew/2, lambda_a_rew_g2)
-    a_pun_g2[s] ~ dnorm(mu_a_pun + alpha_a_pun/2, lambda_a_pun_g2)
-    K_g2[s]     ~ dnorm(mu_K + alpha_K/2, lambda_K_g2)
-    theta_g2[s] ~ dnorm(mu_theta + alpha_theta/2, lambda_theta_g2)
+    a_rew_g2[s] ~ dnorm(mu_a_rew + alpha_a_rew/2, lambda_a_rew_g2)T(0,1)
+    a_pun_g2[s] ~ dnorm(mu_a_pun + alpha_a_pun/2, lambda_a_pun_g2)T(0,1)
+    K_g2[s]     ~ dnorm(mu_K + alpha_K/2, lambda_K_g2)T(0,)
+    theta_g2[s] ~ dnorm(mu_theta + alpha_theta/2, lambda_theta_g2)T(0,)
     omega_f_g2[s] ~ dnorm(mu_omega_f + alpha_omega_f/2, lambda_omega_f_g2)
     omega_p_g2[s] ~ dnorm(mu_omega_p + alpha_omega_p/2, lambda_omega_p_g2)
     

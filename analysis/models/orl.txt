@@ -7,12 +7,12 @@ model {
   mu_omega_f ~ dnorm(0,.1)
   mu_omega_p ~ dnorm(0,.1)
 
-  lambda_a_rew ~ dgamma(.01,.01)
-  lambda_a_pun ~ dgamma(.01,.01)
-  lambda_K ~ dgamma(.01,.01)
-  lambda_theta ~ dgamma(.01,.01)
-  lambda_omega_f ~ dgamma(.01,.01)
-  lambda_omega_p ~ dgamma(.01,.01)
+  lambda_a_rew ~ dgamma(1, 0.5)
+  lambda_a_pun ~ dgamma(1, 0.5)
+  lambda_K ~ dgamma(1, 0.5)
+  lambda_theta ~ dgamma(1, 0.5)
+  lambda_omega_f ~ dgamma(1, 0.5)
+  lambda_omega_p ~ dgamma(1, 0.5)
   
   # more informed priors (that hopefully fit the SD used in the simulation a bit better)
   #lambda_a_rew ~ dgamma(2.5/2,.01/2)
@@ -24,10 +24,10 @@ model {
   
   for (s in 1:nsubs) {
 
-    a_rew[s] ~ dnorm(mu_a_rew,lambda_a_rew)
-    a_pun[s] ~ dnorm(mu_a_pun,lambda_a_pun)
-    K[s]  ~ dnorm(mu_K,lambda_K)
-    theta[s] ~ dnorm(mu_theta,lambda_theta) # set to 1 in order to simplify model
+    a_rew[s] ~ dnorm(mu_a_rew,lambda_a_rew)T(0,1)
+    a_pun[s] ~ dnorm(mu_a_pun,lambda_a_pun)T(0,1)
+    K[s]  ~ dnorm(mu_K,lambda_K)T(0,)
+    theta[s] ~ dnorm(mu_theta,lambda_theta)T(0,) # set to 1 in order to simplify model
     omega_f[s] ~ dnorm(mu_omega_f,lambda_omega_f)
     omega_p[s] ~ dnorm(mu_omega_p,lambda_omega_p)
   
