@@ -91,7 +91,7 @@ fit <- jags.parallel(
     inits = NULL,
     parameters.to.save = params,
     model.file = model_file,
-    n.chains = 3, k = 3,
+    n.chains = 3,
     n.iter = 5000, n.burnin = 1000, n.thin = 1
 )
 

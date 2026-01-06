@@ -44,6 +44,7 @@ simulate_pvl_delta <- function(params, outcomes, n_trials) {
   }
 
   return(choices_sim)
+}
 
 #' Simulate choice data from ORL model
 #' @param params List with Arew, Apun, K, betaF, betaP

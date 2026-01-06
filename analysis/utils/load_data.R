@@ -18,7 +18,7 @@ load_ahn_2014 <- function(group = "HC") {
     choice = dat$deck,
     gain = dat$gain,
     loss = dat$loss,
-    net = dat$gain - abs(dat$loss),
+    net = dat$gain + dat$loss, # loss is already negative in raw data
     study = paste0("Ahn2014_", group)
   )
 
