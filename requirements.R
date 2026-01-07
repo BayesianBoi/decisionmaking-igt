@@ -1,17 +1,18 @@
 # Install required packages for the IGT Analysis Pipeline
 
+# Package Management
+if (!require("pacman")) install.packages("pacman")
+
 # Core Bayesian Modeling
-if (!require("rjags")) install.packages("rjags")
-if (!require("coda")) install.packages("coda")
+pacman::p_load(rjags, R2jags, coda)
 
 # Parallel Computing
-if (!require("parallel")) install.packages("parallel")
+pacman::p_load(parallel)
 
 # Data Manipulation & Visualization
-if (!require("ggplot2")) install.packages("ggplot2")
-if (!require("gridExtra")) install.packages("gridExtra")
+pacman::p_load(ggplot2, gridExtra, ggpubr)
 
-# Model Comparison
-if (!require("loo")) install.packages("loo")
+# Model Comparison & Simulation
+pacman::p_load(loo, extraDistr, truncnorm)
 
 message("All requirements checked/installed.")
