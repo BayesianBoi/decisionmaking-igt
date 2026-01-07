@@ -157,6 +157,9 @@ for (i in 1:n_iter) {
             }
         }
 
+        # Extract posterior samples
+        Y <- fit_result$BUGSoutput$sims.list
+
         res <- list(
             # True Means
             true_mu_a_rew = mu_a_rew, true_mu_a_pun = mu_a_pun,

@@ -22,7 +22,7 @@ source("analysis/utils/plotting_utils.R")
 # ------------------------------------------------------------------------------
 # 2. Load and Combine Results
 # ------------------------------------------------------------------------------
-parts_dir <- "analysis/outputs/recovery/parts"
+parts_dir <- "analysis/outputs/recovery/parts_eef"
 files <- list.files(parts_dir, pattern = "\\.rds$", full.names = TRUE)
 
 if (length(files) == 0) {

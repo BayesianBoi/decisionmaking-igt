@@ -85,6 +85,20 @@ infer_sigma_omega_f <- extract_param(combined_results, "infer_sigma_omega_f")
 true_sigma_omega_p <- extract_param(combined_results, "true_sigma_omega_p")
 infer_sigma_omega_p <- extract_param(combined_results, "infer_sigma_omega_p")
 
+# CIs
+lower_mu_a_rew <- extract_param(combined_results, "lower_mu_a_rew")
+upper_mu_a_rew <- extract_param(combined_results, "upper_mu_a_rew")
+lower_mu_a_pun <- extract_param(combined_results, "lower_mu_a_pun")
+upper_mu_a_pun <- extract_param(combined_results, "upper_mu_a_pun")
+lower_mu_K <- extract_param(combined_results, "lower_mu_K")
+upper_mu_K <- extract_param(combined_results, "upper_mu_K")
+lower_mu_theta <- extract_param(combined_results, "lower_mu_theta")
+upper_mu_theta <- extract_param(combined_results, "upper_mu_theta")
+lower_mu_omega_f <- extract_param(combined_results, "lower_mu_omega_f")
+upper_mu_omega_f <- extract_param(combined_results, "upper_mu_omega_f")
+lower_mu_omega_p <- extract_param(combined_results, "lower_mu_omega_p")
+upper_mu_omega_p <- extract_param(combined_results, "upper_mu_omega_p")
+
 
 # ------------------------------------------------------------------------------
 # 6. Save Summary CSV

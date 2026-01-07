@@ -114,7 +114,10 @@ for (i in 1:n_iter) {
         "nsubs" = nsubs
     )
 
-    params <- c("mu_theta", "mu_lambda", "mu_phi", "mu_cons")
+    params <- c(
+        "mu_theta", "mu_lambda", "mu_phi", "mu_cons",
+        "lambda_theta", "lambda_lambda", "lambda_phi", "lambda_cons"
+    )
 
     # Use tryCatch for JAGS fitting
     fit_result <- tryCatch(
