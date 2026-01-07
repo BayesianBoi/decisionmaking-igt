@@ -3,17 +3,12 @@
 # ==============================================================================
 #
 # This file provides the exact payoff schedule used in the Ahn et al. (2014)
-# datasets (HC, Amphetamine, Heroin groups). The schedule is taken directly
-# from the inspiration code (R/utils/set_version_igt.R).
+# datasets (HC, Amphetamine, Heroin groups). 
 #
 # Key Features of Modified IGT (vs Original):
 # - Variable gains (not constant $100/$50)
 # - Increasing loss magnitudes for Decks B and D across positions
 # - 60 trials per deck (but we extend to 100 by cycling)
-#
-# Reference: Code adapted from inspiration implementation for methodological
-# consistency with published recovery studies.
-# ==============================================================================
 
 #' Generate Modified IGT Payoff - Exact Ahn 2014 Schedule
 #'
