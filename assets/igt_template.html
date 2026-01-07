@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Iowa Gambling Task (IGT) — Enhanced Figure</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      color: #1a1a1a;
+      background: #ffffff;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    main {
+      width: 1000px;
+      max-width: 100%;
+      margin: 20px auto;
+      padding: 0 20px;
+    }
+
+    .caption {
+      font-size: 14px;
+      line-height: 1.5;
+      margin-top: 12px;
+      color: #444;
+      max-width: 800px;
+    }
+
+    @media print {
+      main {
+        margin: 0;
+        width: auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <!-- Increased height to 850 to accommodate vertical stacking -->
+    <svg viewBox="0 0 1000 850" width="100%" height="auto" role="img"
+      aria-label="Schematic of the Iowa Gambling Task with stationary payoff structure and loss probabilities">
+      <defs>
+        <!-- Gradients -->
+        <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#f7f7f7;stop-opacity:1" />
+        </linearGradient>
+
+        <!-- Drop Shadow -->
+        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.1" />
+        </filter>
+
+        <filter id="shadow-sm" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000000" flood-opacity="0.15" />
+        </filter>
+
+        <!-- Arrow Marker -->
+        <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M 0 0 L 8 4 L 0 8" fill="#555" />
+        </marker>
+
+        <!-- Card Patterns/Fills -->
+        <pattern id="diagonalHatch" width="10" height="10" patternTransform="rotate(45 0 0)"
+          patternUnits="userSpaceOnUse">
+          <line x1="0" y1="0" x2="0" y2="10" style="stroke:#000000; stroke-width:1; stroke-opacity:0.05" />
+        </pattern>
+      </defs>
+
+      <style>
+        .text-main {
+          font-size: 14px;
+          fill: #222;
+        }
+
+        .text-muted {
+          font-size: 12px;
+          fill: #666;
+        }
+
+        .text-bold {
+          font-weight: 700;
+        }
+
+        .text-title {
+          font-size: 20px;
+          font-weight: 700;
+          fill: #111;
+        }
+
+        .text-label {
+          font-size: 16px;
+          font-weight: 600;
+          fill: #333;
+        }
+
+        .text-value {
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-weight: 600;
+        }
+
+        .deck-group {
+          cursor: default;
+        }
+
+        .card-back {
+          fill: url(#cardGrad);
+          stroke: #ddd;
+          stroke-width: 1;
+          filter: url(#shadow);
+        }
+
+        .stack-card {
+          fill: #fff;
+          stroke: #e0e0e0;
+          stroke-width: 1;
+        }
+
+        /* Accents for Decks */
+        .accent-bad {
+          stroke: #d32f2f;
+          stroke-width: 0;
+          fill: #d32f2f;
+        }
+
+        /* Red for Disadvantageous */
+        .accent-good {
+          stroke: #2e7d32;
+          stroke-width: 0;
+          fill: #2e7d32;
+        }
+
+        /* Green for Advantageous */
+        .pill-bad {
+          fill: #ffebee;
+          stroke: #ffcdd2;
+        }
+
+        .pill-good {
+          fill: #e8f5e9;
+          stroke: #c8e6c9;
+        }
+
+        .text-bad {
+          fill: #c62828;
+        }
+
+        .text-good {
+          fill: #2e7d32;
+        }
+
+        .line-divider {
+          stroke: #e0e0e0;
+          stroke-width: 1;
+          stroke-dasharray: 4, 4;
+        }
+
+        .flow-line {
+          stroke: #999;
+          stroke-width: 1.5;
+          fill: none;
+          marker-end: url(#arrow);
+        }
+      </style>
+
+      <!-- Main Title Block -->
+      <text x="30" y="45" class="text-title">Iowa Gambling Task (IGT)</text>
+      <!-- CHANGED: clearer description, no "verify policies" -->
+      <text x="30" y="70" class="text-main" style="fill:#555">
+        Participants learn to make decisions under uncertainty by repeatedly drawing from four decks with fixed payoff
+        schedules.
+      </text>
+
+      <!-- Grid Container -->
+      <g transform="translate(30, 100)">
+
+        <!-- Section: Disadvantageous Decks (Left Column) -->
+        <!-- CHANGED: removed parenthetical -->
+        <text x="0" y="-10" class="text-label text-bad"
+          style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">▼ Disadvantageous Decks</text>
+        <rect x="-10" y="5" width="460" height="460" rx="12" fill="#fff5f5" stroke="none" />
+
+        <!-- DECK A (Top Left) -->
+        <g transform="translate(20, 30)" class="deck-group">
+          <text x="60" y="-8" class="text-label">Deck A</text>
+          <!-- Stack effect -->
+          <rect x="5" y="5" width="120" height="170" rx="6" class="stack-card" transform="rotate(3 65 90)" />
+          <rect x="2" y="2" width="120" height="170" rx="6" class="stack-card" transform="rotate(-2 65 90)" />
+          <rect x="0" y="0" width="120" height="170" rx="6" class="card-back" />
+          <!-- Pattern -->
+          <rect x="6" y="6" width="108" height="158" rx="4" fill="url(#diagonalHatch)" />
+          <!-- Symbol -->
+          <circle cx="60" cy="85" r="25" fill="#fff" stroke="#e0e0e0" stroke-width="1" />
+          <text x="60" y="90" text-anchor="middle" class="text-title text-bad">A</text>
+
+          <!-- Details -->
+          <g transform="translate(140, 10)">
+            <text x="0" y="20" class="text-label text-bold">Gain: $100</text>
+            <!-- CHANGED: remove "$" shorthand and "Penalty" wording -->
+            <text x="0" y="55" class="text-main text-bad">High loss frequency</text>
+            <text x="0" y="80" class="text-muted">Loss probability: 0.5</text>
+            <!-- CHANGED: remove misleading range -->
+            <text x="0" y="100" class="text-muted">Multiple fixed losses per 10 cards</text>
+            <text x="0" y="145" class="text-value text-bad" style="font-size: 16px;">Net: -$250 / 10 cards</text>
+          </g>
+        </g>
+
+        <!-- DECK B (Bottom Left - Stacked below A) -->
+        <g transform="translate(20, 250)" class="deck-group">
+          <text x="60" y="-8" class="text-label">Deck B</text>
+          <!-- Stack effect -->
+          <rect x="5" y="5" width="120" height="170" rx="6" class="stack-card" transform="rotate(2 65 90)" />
+          <rect x="2" y="2" width="120" height="170" rx="6" class="stack-card" transform="rotate(-1 65 90)" />
+          <rect x="0" y="0" width="120" height="170" rx="6" class="card-back" />
+          <!-- Pattern -->
+          <rect x="6" y="6" width="108" height="158" rx="4" fill="url(#diagonalHatch)" />
+          <!-- Symbol -->
+          <circle cx="60" cy="85" r="25" fill="#fff" stroke="#e0e0e0" stroke-width="1" />
+          <text x="60" y="90" text-anchor="middle" class="text-title text-bad">B</text>
+
+          <!-- Details -->
+          <g transform="translate(140, 10)">
+            <text x="0" y="20" class="text-label text-bold">Gain: $100</text>
+            <text x="0" y="55" class="text-main text-bad">Low loss frequency</text>
+            <text x="0" y="80" class="text-muted">Loss probability: 0.1</text>
+            <!-- CHANGED: replace ambiguous "Value" with explicit loss magnitude -->
+            <text x="0" y="100" class="text-muted">Single large loss: -$1250 (per 10 cards)</text>
+            <text x="0" y="145" class="text-value text-bad" style="font-size: 16px;">Net: -$250 / 10 cards</text>
+          </g>
+        </g>
+
+        <!-- Section: Advantageous Decks (Right Column) -->
+        <g transform="translate(480, 0)">
+          <!-- CHANGED: removed parenthetical -->
+          <text x="0" y="-10" class="text-label text-good"
+            style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">▲ Advantageous Decks</text>
+          <rect x="-10" y="5" width="460" height="460" rx="12" fill="#f1f8e9" stroke="none" />
+
+          <!-- DECK C (Top Right) -->
+          <g transform="translate(20, 30)" class="deck-group">
+            <text x="60" y="-8" class="text-label">Deck C</text>
+            <!-- Stack -->
+            <rect x="5" y="5" width="120" height="170" rx="6" class="stack-card" transform="rotate(1 65 90)" />
+            <rect x="2" y="2" width="120" height="170" rx="6" class="stack-card" transform="rotate(-3 65 90)" />
+            <rect x="0" y="0" width="120" height="170" rx="6" class="card-back" />
+            <!-- Pattern -->
+            <rect x="6" y="6" width="108" height="158" rx="4" fill="url(#diagonalHatch)" />
+            <!-- Symbol -->
+            <circle cx="60" cy="85" r="25" fill="#fff" stroke="#e0e0e0" stroke-width="1" />
+            <text x="60" y="90" text-anchor="middle" class="text-title text-good">C</text>
+
+            <!-- Details -->
+            <g transform="translate(140, 10)">
+              <text x="0" y="20" class="text-label text-bold">Gain: $50</text>
+              <text x="0" y="55" class="text-main text-good">High loss frequency</text>
+              <text x="0" y="80" class="text-muted">Loss probability: 0.5</text>
+              <!-- CHANGED: remove misleading range -->
+              <text x="0" y="100" class="text-muted">Multiple fixed losses per 10 cards</text>
+              <text x="0" y="145" class="text-value text-good" style="font-size: 16px;">Net: +$250 / 10 cards</text>
+            </g>
+          </g>
+
+          <!-- DECK D (Bottom Right - Stacked below C) -->
+          <g transform="translate(20, 250)" class="deck-group">
+            <text x="60" y="-8" class="text-label">Deck D</text>
+            <!-- Stack -->
+            <rect x="5" y="5" width="120" height="170" rx="6" class="stack-card" transform="rotate(2 65 90)" />
+            <rect x="2" y="2" width="120" height="170" rx="6" class="stack-card" transform="rotate(-1 65 90)" />
+            <rect x="0" y="0" width="120" height="170" rx="6" class="card-back" />
+            <!-- Pattern -->
+            <rect x="6" y="6" width="108" height="158" rx="4" fill="url(#diagonalHatch)" />
+            <!-- Symbol -->
+            <circle cx="60" cy="85" r="25" fill="#fff" stroke="#e0e0e0" stroke-width="1" />
+            <text x="60" y="90" text-anchor="middle" class="text-title text-good">D</text>
+
+            <!-- Details -->
+            <g transform="translate(140, 10)">
+              <text x="0" y="20" class="text-label text-bold">Gain: $50</text>
+              <text x="0" y="55" class="text-main text-good">Low loss frequency</text>
+              <text x="0" y="80" class="text-muted">Loss probability: 0.1</text>
+              <!-- CHANGED: replace ambiguous "Value" with explicit loss magnitude -->
+              <text x="0" y="100" class="text-muted">Single loss: -$250 (per 10 cards)</text>
+              <text x="0" y="145" class="text-value text-good" style="font-size: 16px;">Net: +$250 / 10 cards</text>
+            </g>
+          </g>
+        </g>
+      </g>
+
+      <!-- Bottom Logic Flow -->
+      <g transform="translate(30, 600)">
+        <text x="0" y="0" class="text-label" style="font-size: 14px;">Task Flow</text>
+        <line x1="0" y1="15" x2="940" y2="15" stroke="#eee" stroke-width="2" />
+
+        <g transform="translate(0, 40)">
+          <rect x="0" y="0" width="220" height="60" rx="8" fill="#fff" stroke="#ccc" stroke-width="1"
+            filter="url(#shadow-sm)" />
+          <text x="110" y="35" text-anchor="middle" class="text-main" dominant-baseline="central">1. Choose a
+            Deck</text>
+        </g>
+
+        <path d="M 230 70 L 260 70" class="flow-line" />
+
+        <g transform="translate(270, 40)">
+          <rect x="0" y="0" width="220" height="60" rx="8" fill="#fff" stroke="#ccc" stroke-width="1"
+            filter="url(#shadow-sm)" />
+          <text x="110" y="25" text-anchor="middle" class="text-main text-bold" style="fill:#2e7d32"
+            dominant-baseline="central">2. Receive Reward</text>
+          <text x="110" y="45" text-anchor="middle" class="text-muted" dominant-baseline="central">+$100 or +$50</text>
+        </g>
+
+        <path d="M 500 70 L 530 70" class="flow-line" />
+
+        <g transform="translate(540, 40)">
+          <rect x="0" y="0" width="220" height="60" rx="8" fill="#fff" stroke="#ccc" stroke-width="1"
+            filter="url(#shadow-sm)" />
+          <text x="110" y="25" text-anchor="middle" class="text-main text-bold" style="fill:#c62828"
+            dominant-baseline="central">3. Possible Penalty</text>
+          <text x="110" y="45" text-anchor="middle" class="text-muted" dominant-baseline="central">Fixed loss
+            schedule</text>
+        </g>
+
+        <path d="M 770 70 L 800 70" class="flow-line" />
+
+        <text x="810" y="75" class="text-main text-bold">Repeat ~100 trials</text>
+      </g>
+
+    </svg>
+
+  </main>
+</body>
+
+</html>
