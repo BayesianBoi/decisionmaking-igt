@@ -7,97 +7,86 @@ A Hierarchical Bayesian analysis investigating whether substance use disorders a
 **Primary:** Do individuals with substance use disorders exhibit elevated memory decay rates in reinforcement learning compared to healthy controls?
 
 **Secondary:**
-1. Can poor IGT performance in substance use disorders be explained by memory retention deficits (high λ) rather than learning acquisition deficits (low A)?
-2. Does the EEF model (with forgetting) provide better fit than models assuming perfect memory (PVL-Delta) or asymmetric reward/punishment processing (ORL)?
-3. Do different substance classes (stimulants, opioids, cannabis) show differential forgetting profiles?
+1. Can impaired IGT performance in substance use disorders be explained by memory retention deficits (high λ) rather than learning acquisition deficits (low A)?
+2. Does the EEF model (incorporating forgetting) provide a superior fit compared to models assuming perfect memory (PVL-Delta) or asymmetric reward/punishment processing (ORL)?
+3. Do different substance classes (stimulants vs. opioids) demonstrate distinct forgetting profiles?
 
-## Models
+## Computational Models
 
-Three computational models of reinforcement learning are compared:
+Three reinforcement learning models were evaluated:
 
-| Model | Parameters | Key Feature | Reference |
+| Model | Parameters | Key Mechanism | Reference |
 |-------|-----------|-------------|-----------|
-| **EEF** | 4 | Memory decay (λ) | Yang et al. (2025) |
-| **PVL-Delta** | 4 | Perfect memory | Ahn et al. (2008) |
-| **ORL** | 5 | Asymmetric reward/punishment | Haines et al. (2018) |
+| **EEF** | 4 | Exploration and Exploitation with Forgetting (λ) | Yang et al. (2025) |
+| **PVL-Delta** | 4 | Prospect Theory + Delta Learning (Perfect Memory) | Ahn et al. (2008) |
+| **ORL** | 5 | Outcome-Representation Learning (Asymmetric Weights) | Haines et al. (2018) |
 
 ## Data
 
-Clinical populations from published studies:
+This project utilizes the dataset from Ahn et al. (2014), comprising decision-making data from three distinct groups:
 
-| Study | Group | N |
-|-------|-------|---|
-| Ahn et al. (2014) | Healthy Controls | 48 |
-| Ahn et al. (2014) | Amphetamine | 38 |
-| Ahn et al. (2014) | Heroin | 43 |
-| Fridberg et al. (2010) | Healthy Controls | 15 |
-| Fridberg et al. (2010) | Cannabis | 17 |
-| **Total** | | **161** |
+| Group | N | Description |
+|-------|---|-------------|
+| **Healthy Controls** | 48 | No history of substance dependence |
+| **Amphetamine** | 38 | History of amphetamine dependence (abstinent > 1 month) |
+| **Heroin** | 43 | History of heroin dependence (abstinent > 1 month) |
+| **Total** | **129** | |
 
 ## Requirements
 
 - R >= 4.0
 - JAGS >= 4.3
-- R packages: rjags, coda, ggplot2, gridExtra
+- R packages: `R2jags`, `rjags`, `coda`, `ggplot2`, `gridExtra`, `pacman`
 
 ## Usage
 
+### 1. Model Fitting
+Models are fit using hierarchical Bayesian estimation via JAGS. Scripts are located in `scripts/fitting/`.
+
 ```bash
-# Verify pipeline integrity
-Rscript analysis/scripts/verify_pipeline.R
+# Example: Fit ORL model for Healthy Controls
+nohup Rscript scripts/fitting/fit_orl.R HC > logs/orl_HC.log 2>&1 &
 
-# Fit models (run in parallel on cloud)
-nohup Rscript analysis/scripts/fit_eef.R > eef.log 2>&1 &
-nohup Rscript analysis/scripts/fit_pvl_delta.R > pvl.log 2>&1 &
-nohup Rscript analysis/scripts/fit_orl.R > orl.log 2>&1 &
+# Fit other groups/models
+nohup Rscript scripts/fitting/fit_eef.R Amph > logs/eef_Amph.log 2>&1 &
+```
 
-# Analysis
-Rscript analysis/scripts/parameter_recovery.R
-Rscript analysis/scripts/compare_groups.R
-Rscript analysis/scripts/compare_models.R
-Rscript analysis/scripts/create_figures.R
+### 2. Posterior Predictive Checks (PPC)
+After fitting, verify model performance using the MPD (Maximum Posterior Density) approach through the scripts in `scripts/ppc/`.
+
+```bash
+Rscript scripts/ppc/run_ppc_mpd.R orl HC
+Rscript scripts/ppc/plot_ppc_combined.R  # Generate summary plots
+```
+
+### 3. Analysis and Visualization
+Generate parameter recovery plots and group comparisons:
+
+```bash
+Rscript scripts/recovery/recovery_orl.R
+Rscript scripts/plotting/plot_group_posteriors.R
 ```
 
 ## Repository Structure
 
 ```
-├── analysis/
-│   ├── scripts/           # Analysis scripts
-│   ├── models/            # JAGS model definitions
-│   │   ├── eef.jags
-│   │   ├── pvl_delta.jags
-│   │   └── orl.jags
-│   └── utils/             # Helper functions
-├── data/raw/              # Source data
-└── results/               # Output (not tracked)
+decision_making/
+├── models/                  # JAGS model definitions (.txt)
+├── scripts/
+│   ├── fitting/             # Hierarchical model fitting scripts
+│   ├── recovery/            # Parameter recovery simulations
+│   ├── ppc/                 # Posterior predictive checks
+│   ├── group_comparison/    # Group difference analysis
+│   └── plotting/            # Visualization utilities
+├── utils/                   # Shared R functions (data loading, etc.)
+├── outputs/                 # Model fits and results (not tracked)
+├── plots/                   # Generated figures
+└── data/                    # Raw IGT data
 ```
 
 ## References
 
-- Ahn, W.Y., Busemeyer, J.R., & Wagenmakers, E.J. (2008). Comparison of decision learning models. *Cognitive Science*.
+- Ahn, W.Y., et al. (2008). Comparison of decision learning models. *Cognitive Science*.
 - Ahn, W.Y., et al. (2014). Decision-making in stimulant and opiate addicts. *Neuropsychopharmacology*.
-- Fridberg, D.J., et al. (2010). Cognitive mechanisms underlying risky decision-making in chronic cannabis users. *Journal of Mathematical Psychology*.
 - Haines, N., Vassileva, J., & Ahn, W.Y. (2018). The Outcome-Representation Learning model. *Cognitive Science*.
 - Yang, X., et al. (2025). Exploitation and Exploration with Forgetting. *Frontiers in Psychology*.
-
-## Cloud Deployment Guide
-
-1. **Install System Dependencies (Ubuntu/Debian)**
-   ```bash
-   sudo apt-get update
-   sudo apt-get install -y jags r-base
-   ```
-
-2. **Clone Repository**
-   ```bash
-   git clone <your-repo-url>
-   cd decision_making
-   ```
-
-3. **Install R Packages**
-   ```bash
-   Rscript requirements.R
-   ```
-
-4. **Run Pipeline (Background Mode)**
-   Use the `nohup` commands listed in the **Usage** section to ensure processes continue running if your session disconnects.

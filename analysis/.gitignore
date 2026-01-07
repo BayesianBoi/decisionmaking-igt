@@ -1,8 +1,0 @@
-# Ignore analysis outputs
-outputs/*.rds
-outputs/*.pdf
-outputs/*.png
-outputs/*.md
-
-# But keep the directory
-!outputs/.gitkeep
