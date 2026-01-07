@@ -29,7 +29,7 @@ precision_to_sd <- function(lambda) {
 
 source("analysis/1_analysis/2_Recovery/simulation_orl.R")
 source("analysis/utils/payoff_scheme.R")
-source("analysis/utils/plotting_utils.R")
+source("analysis/2_plotting/plotting_utils.R")
 
 # ==============================================================================
 # Task Setup
@@ -51,14 +51,14 @@ if ("--test" %in% args) {
     niterations <- 100 # Standard recovery count
 }
 
-nsubs <- 24 # Reduced for computational feasibility; still valid for recovery
+nsubs <- 48 # Number of simulated subjects (matches Ahn 2014 HC group size)
 ntrials_all <- rep(100, nsubs)
 
 # ==============================================================================
 # Main Recovery Loop (Parallelized)
 # ==============================================================================
 start_time <- Sys.time()
-n_cores <- min(40, parallel::detectCores() - 1)
+n_cores <- parallel::detectCores() - 1
 if (n_cores < 1) n_cores <- 1
 
 cat("Starting ORL Parameter Recovery...\n")

@@ -286,7 +286,7 @@ generate_publication_package <- function(models_dir = "analysis/outputs",
 
   # Generate figures
   cat("Generating figures...\n")
-  source("analysis/utils/visualization.R")
+  source("analysis/2_plotting/visualization.R")
   generate_all_figures(models_dir, fig_dir)
 
   # Generate tables

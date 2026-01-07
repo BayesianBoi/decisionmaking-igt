@@ -9,7 +9,7 @@
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(ggplot2, dplyr, tidyr, patchwork)
 
-source("analysis/utils/plotting_publication.R")
+source("analysis/2_plotting/plotting_publication.R")
 
 # ==============================================================================
 # Load Pseudo Data

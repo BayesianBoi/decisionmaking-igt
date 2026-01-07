@@ -39,7 +39,7 @@ precision_to_sd <- function(lambda) {
 # Source dependencies
 source("analysis/1_analysis/2_Recovery/simulation_pvl_delta.R")
 source("analysis/utils/payoff_scheme.R")
-source("analysis/utils/plotting_utils.R")
+source("analysis/2_plotting/plotting_utils.R")
 
 # ==============================================================================
 # Task Setup

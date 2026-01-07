@@ -16,7 +16,7 @@ new_packages <- required_packages[!(required_packages %in% installed.packages()[
 if (length(new_packages)) install.packages(new_packages, repos = "http://cran.us.r-project.org")
 invisible(lapply(required_packages, library, character.only = TRUE))
 
-source("analysis/utils/plotting_utils.R")
+source("analysis/2_plotting/plotting_utils.R")
 
 # ------------------------------------------------------------------------------
 # 2. Load and Combine Results

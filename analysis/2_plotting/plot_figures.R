@@ -22,7 +22,7 @@ library(gridExtra)
 library(coda)
 
 source("analysis/utils/load_data.R")
-source("analysis/utils/plotting_utils.R")
+source("analysis/2_plotting/plotting_utils.R")
 
 # ===========================================================================
 # Configuration
