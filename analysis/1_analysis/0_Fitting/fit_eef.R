@@ -93,7 +93,7 @@ model_file <- "analysis/models/eef.txt"
 params <- c(
   "mu_theta", "mu_lambda", "mu_phi", "mu_cons",
   "lambda_theta", "lambda_lambda", "lambda_phi", "lambda_cons",
-  "theta", "lambda", "phi", "cons"
+  "theta", "lambda", "phi", "cons", "p"
 )
 
 cat("Fitting hierarchical EEF model for group:", target_group, "...\n")
