@@ -8,8 +8,9 @@ temp_logs/
 R/
 
 # Output files (regenerated on run)
-analysis/outputs/
-analysis/plots/
+# Output files (regenerated on run)
+# outputs/ and plots/ are tracked, but specific extensions ignored
+*.rds
 
 # R build artifacts
 *.Rproj.user
