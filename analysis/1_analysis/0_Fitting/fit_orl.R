@@ -113,9 +113,9 @@ fit <- jags.parallel(
   parameters.to.save = params,
   model.file = model_file,
   n.chains = 3,
-  n.iter = 5000,
-  n.burnin = 1000,
-  n.thin = 1
+  n.iter = 10000,
+  n.burnin = 5000,
+  n.thin = 2
 )
 
 end_time <- Sys.time()
