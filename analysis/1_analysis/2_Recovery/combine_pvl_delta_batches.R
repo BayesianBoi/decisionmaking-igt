@@ -114,33 +114,27 @@ cat("Summary CSV saved to:", csv_path, "\n")
 plot_dir <- "analysis/plots/recovery"
 dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 
-# --- Plot Means ---
-cat("Generating Mean plots...\n")
-p1 <- plot_recovery(true_mu_w, infer_mu_w, "mu_w (Loss Aversion)")
-p2 <- plot_recovery(true_mu_A, infer_mu_A, "mu_A (Outcome Sensitivity)")
-p3 <- plot_recovery(true_mu_a, infer_mu_a, "mu_a (Learning Rate)")
-p4 <- plot_recovery(true_mu_theta, infer_mu_theta, "mu_theta (Inv. Temp)")
+# Means
+p1 <- plot_recovery(true_mu_w, infer_mu_w, "Loss Aversion (w)")
+p2 <- plot_recovery(true_mu_A, infer_mu_A, "Outcome Sensitivity (A)")
+p3 <- plot_recovery(true_mu_a, infer_mu_a, "Learning Rate (a)")
+p4 <- plot_recovery(true_mu_theta, infer_mu_theta, "Response Consistency (theta)")
 
-final_plot_means <- combine_plots(list(p1, p2, p3, p4), "PVL-Delta Parameter Recovery - MEANS")
-ggsave(file.path(plot_dir, "recovery_pvl_delta_means.png"), final_plot_means, width = 10, height = 8)
-cat("Means plot saved.\n")
+# Sigmas
+s1 <- plot_recovery(true_sigma_w, infer_sigma_w, "Sigma w")
+s2 <- plot_recovery(true_sigma_A, infer_sigma_A, "Sigma A")
+s3 <- plot_recovery(true_sigma_a, infer_sigma_a, "Sigma a")
+s4 <- plot_recovery(true_sigma_theta, infer_sigma_theta, "Sigma theta")
 
+# Combine all into one 2x4 grid
+combined_plot <- ggarrange(
+    p1, p2, p3, p4,
+    s1, s2, s3, s4,
+    ncol = 4, nrow = 2
+)
 
-# --- Plot Sigmas ---
-cat("Generating Sigma plots...\n")
-valid_idx <- !is.na(true_sigma_w)
-if (sum(valid_idx) > 0) {
-    ps1 <- plot_recovery(true_sigma_w[valid_idx], infer_sigma_w[valid_idx], "sigma_w")
-    ps2 <- plot_recovery(true_sigma_A[valid_idx], infer_sigma_A[valid_idx], "sigma_A")
-    ps3 <- plot_recovery(true_sigma_a[valid_idx], infer_sigma_a[valid_idx], "sigma_a")
-    ps4 <- plot_recovery(true_sigma_theta[valid_idx], infer_sigma_theta[valid_idx], "sigma_theta")
-
-    final_plot_sigmas <- combine_plots(list(ps1, ps2, ps3, ps4), "PVL-Delta Parameter Recovery - SIGMAS")
-    ggsave(file.path(plot_dir, "recovery_pvl_delta_sigmas.png"), final_plot_sigmas, width = 10, height = 8)
-    cat("Sigmas plot saved.\n")
-} else {
-    cat("No valid sigma data found.\n")
-}
+ggsave(file.path(plot_dir, "recovery_pvl_delta_combined.png"), combined_plot, width = 16, height = 8)
+print(paste("Combined plot saved to:", file.path(plot_dir, "recovery_pvl_delta_combined.png")))
 
 
 # ------------------------------------------------------------------------------

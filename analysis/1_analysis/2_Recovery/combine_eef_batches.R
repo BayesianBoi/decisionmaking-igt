@@ -110,36 +110,37 @@ write.csv(df_summary, csv_path, row.names = FALSE)
 cat("Summary CSV saved to:", csv_path, "\n")
 
 # ------------------------------------------------------------------------------
-# 7. Generate Plots
+# 7. Generate Plots (Combined Means + Sigmas)
 # ------------------------------------------------------------------------------
 plot_dir <- "analysis/plots/recovery"
 dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 
-# --- Plot Means ---
-cat("Generating Mean plots...\n")
-p1 <- plot_recovery(true_mu_theta, infer_mu_theta, "Sensitivity (mu_theta)")
-p2 <- plot_recovery(true_mu_lambda, infer_mu_lambda, "Decay Rate (mu_lambda)")
-p3 <- plot_recovery(true_mu_phi, infer_mu_phi, "Exploration (mu_phi)")
-p4 <- plot_recovery(true_mu_cons, infer_mu_cons, "Consistency (mu_cons)")
+# Means
+p_theta <- plot_recovery(true_mu_theta, infer_mu_theta, "Value Sensitivity (theta)")
+p_lambda <- plot_recovery(true_mu_lambda, infer_mu_lambda, "Forgetting (lambda)")
+p_phi <- plot_recovery(true_mu_phi, infer_mu_phi, "Exploration (phi)")
+p_cons <- plot_recovery(true_mu_cons, infer_mu_cons, "Consistency (c)")
 
-final_plot_means <- combine_plots(list(p1, p2, p3, p4), "EEF Parameter Recovery - MEANS")
-ggsave(file.path(plot_dir, "recovery_eef_means.png"), final_plot_means, width = 10, height = 8)
-cat("Means plot saved.\n")
+# Sigmas
+p_sigma_theta <- plot_recovery(true_sigma_theta, infer_sigma_theta, "Sigma Theta")
+p_sigma_lambda <- plot_recovery(true_sigma_lambda, infer_sigma_lambda, "Sigma Lambda")
+p_sigma_phi <- plot_recovery(true_sigma_phi, infer_sigma_phi, "Sigma Phi")
+p_sigma_cons <- plot_recovery(true_sigma_cons, infer_sigma_cons, "Sigma Consistency")
 
-# --- Plot Sigmas ---
-cat("Generating Sigma plots...\n")
-# Filter out NAs for plotting (in case of mixed batch files)
-valid_idx <- !is.na(true_sigma_theta)
+# Combine all into one 2x4 grid
+combined_plot <- ggarrange(
+    p_theta, p_lambda, p_phi, p_cons,
+    p_sigma_theta, p_sigma_lambda, p_sigma_phi, p_sigma_cons,
+    ncol = 4, nrow = 2
+)
+
+ggsave(file.path(plot_dir, "recovery_eef_combined.png"), combined_plot, width = 16, height = 8)
+print(paste("Combined plot saved to:", file.path(plot_dir, "recovery_eef_combined.png")))
+
+# Print correlations
+
+valid_idx <- !is.na(true_sigma_theta) # Re-evaluate valid_idx for correlations
 if (sum(valid_idx) > 0) {
-    p5 <- plot_recovery(true_sigma_theta[valid_idx], infer_sigma_theta[valid_idx], "SD Sensitivity (sigma_theta)")
-    p6 <- plot_recovery(true_sigma_lambda[valid_idx], infer_sigma_lambda[valid_idx], "SD Decay Rate (sigma_lambda)")
-    p7 <- plot_recovery(true_sigma_phi[valid_idx], infer_sigma_phi[valid_idx], "SD Exploration (sigma_phi)")
-    p8 <- plot_recovery(true_sigma_cons[valid_idx], infer_sigma_cons[valid_idx], "SD Consistency (sigma_cons)")
-
-    final_plot_sigmas <- combine_plots(list(p5, p6, p7, p8), "EEF Parameter Recovery - SIGMAS")
-    ggsave(file.path(plot_dir, "recovery_eef_sigmas.png"), final_plot_sigmas, width = 10, height = 8)
-    cat("Sigmas plot saved.\n")
-
     # Print correlations
     cat("\n=== Recovery Correlations (Sigmas) ===\n")
     cat("sigma_theta:  r =", round(cor(true_sigma_theta[valid_idx], infer_sigma_theta[valid_idx]), 2), "\n")

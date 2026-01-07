@@ -141,37 +141,38 @@ make_2x3_grid <- function(p1, p2, p3, p4, p5, p6, title) {
     annotate_figure(fp, top = text_grob(title, face = "bold", size = 14))
 }
 
-# --- Plot Means ---
-cat("Generating Mean plots...\n")
-pl1 <- plot_recovery(true_mu_a_rew, infer_mu_a_rew, "mu_a_rew")
-pl2 <- plot_recovery(true_mu_a_pun, infer_mu_a_pun, "mu_a_pun")
-pl3 <- plot_recovery(true_mu_K, infer_mu_K, "mu_K")
-pl4 <- plot_recovery(true_mu_theta, infer_mu_theta, "mu_theta")
-pl5 <- plot_recovery(true_mu_omega_f, infer_mu_omega_f, "mu_omega_f")
-pl6 <- plot_recovery(true_mu_omega_p, infer_mu_omega_p, "mu_omega_p")
+cat("Generating combined plots...\n")
+# Means
+p1 <- plot_recovery(true_mu_a_rew, infer_mu_a_rew, "Reward Learning (A_rew)")
+p2 <- plot_recovery(true_mu_a_pun, infer_mu_a_pun, "Punishment Learning (A_pun)")
+p3 <- plot_recovery(true_mu_K, infer_mu_K, "Decay (K)")
+p4 <- plot_recovery(true_mu_theta, infer_mu_theta, "Inv. Temp (theta)")
+p5 <- plot_recovery(true_mu_omega_f, infer_mu_omega_f, "Frequency Weight (omega_f)")
+p6 <- plot_recovery(true_mu_omega_p, infer_mu_omega_p, "Perseverance (omega_p)")
 
-final_plot_means <- make_2x3_grid(pl1, pl2, pl3, pl4, pl5, pl6, "ORL Parameter Recovery - MEANS")
-ggsave(file.path(plot_dir, "recovery_orl_means.png"), final_plot_means, width = 15, height = 10)
-cat("Means plot saved.\n")
+# Sigmas
+s1 <- plot_recovery(true_sigma_a_rew, infer_sigma_a_rew, "Sigma A_rew")
+s2 <- plot_recovery(true_sigma_a_pun, infer_sigma_a_pun, "Sigma A_pun")
+s3 <- plot_recovery(true_sigma_K, infer_sigma_K, "Sigma K")
+s4 <- plot_recovery(true_sigma_theta, infer_sigma_theta, "Sigma Theta")
+s5 <- plot_recovery(true_sigma_omega_f, infer_sigma_omega_f, "Sigma Omega_F")
+s6 <- plot_recovery(true_sigma_omega_p, infer_sigma_omega_p, "Sigma Omega_P")
 
+# Combine all into one 2x6 grid (or 3x4 if preferred, but let's do 2 rows of 6 cols for width)
+# Actually 6 parameters * 2 = 12 plots. Maybe 2 rows of 6 is too wide.
+# Let's do 4 rows of 3 columns.
+# Row 1-2: Means, Row 3-4: Sigmas
 
-# --- Plot Sigmas ---
-cat("Generating Sigma plots...\n")
-valid_idx <- !is.na(true_sigma_a_rew)
-if (sum(valid_idx) > 0) {
-    ps1 <- plot_recovery(true_sigma_a_rew[valid_idx], infer_sigma_a_rew[valid_idx], "sigma_a_rew")
-    ps2 <- plot_recovery(true_sigma_a_pun[valid_idx], infer_sigma_a_pun[valid_idx], "sigma_a_pun")
-    ps3 <- plot_recovery(true_sigma_K[valid_idx], infer_sigma_K[valid_idx], "sigma_K")
-    ps4 <- plot_recovery(true_sigma_theta[valid_idx], infer_sigma_theta[valid_idx], "sigma_theta")
-    ps5 <- plot_recovery(true_sigma_omega_f[valid_idx], infer_sigma_omega_f[valid_idx], "sigma_omega_f")
-    ps6 <- plot_recovery(true_sigma_omega_p[valid_idx], infer_sigma_omega_p[valid_idx], "sigma_omega_p")
+combined_plot <- ggarrange(
+    p1, p2, p3,
+    p4, p5, p6,
+    s1, s2, s3,
+    s4, s5, s6,
+    ncol = 3, nrow = 4
+)
 
-    final_plot_sigmas <- make_2x3_grid(ps1, ps2, ps3, ps4, ps5, ps6, "ORL Parameter Recovery - SIGMAS")
-    ggsave(file.path(plot_dir, "recovery_orl_sigmas.png"), final_plot_sigmas, width = 15, height = 10)
-    cat("Sigmas plot saved.\n")
-} else {
-    cat("No valid sigma data found.\n")
-}
+ggsave(file.path(plot_dir, "recovery_orl_combined.png"), combined_plot, width = 12, height = 16)
+print(paste("Combined plot saved to:", file.path(plot_dir, "recovery_orl_combined.png")))
 
 
 # Print major correlations (Means)
