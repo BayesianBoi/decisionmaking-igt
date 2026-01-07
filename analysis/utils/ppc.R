@@ -236,8 +236,14 @@ compute_block_proportions <- function(choices, block_size = 20) {
 run_ppc <- function(fit_result, observed_data, model_name, n_sim = 100) {
   cat(sprintf("\n=== Posterior Predictive Check: %s ===\n", model_name))
 
-  # Extract posterior samples
-  samples_matrix <- as.matrix(fit_result$samples)
+  # Extract posterior samples (handle both jags and rjags output formats)
+  if (!is.null(fit_result$BUGSoutput$sims.matrix)) {
+    samples_matrix <- fit_result$BUGSoutput$sims.matrix
+  } else if (!is.null(fit_result$samples)) {
+    samples_matrix <- as.matrix(fit_result$samples)
+  } else {
+    stop("Cannot extract posterior samples from fit object")
+  }
   n_posterior <- nrow(samples_matrix)
 
   # Sample from posterior
@@ -265,11 +271,11 @@ run_ppc <- function(fit_result, observed_data, model_name, n_sim = 100) {
       sim_choices <- simulate_pvl_delta(params, observed_data$outcome, observed_data$Tsubj)
     } else if (model_name == "orl") {
       params <- list(
-        Arew = samples_matrix[idx, grep("^Arew\\[", colnames(samples_matrix))],
-        Apun = samples_matrix[idx, grep("^Apun\\[", colnames(samples_matrix))],
+        Arew = samples_matrix[idx, grep("^a_rew\\[", colnames(samples_matrix))],
+        Apun = samples_matrix[idx, grep("^a_pun\\[", colnames(samples_matrix))],
         K = samples_matrix[idx, grep("^K\\[", colnames(samples_matrix))],
-        betaF = samples_matrix[idx, grep("^betaF\\[", colnames(samples_matrix))],
-        betaP = samples_matrix[idx, grep("^betaP\\[", colnames(samples_matrix))]
+        betaF = samples_matrix[idx, grep("^omega_f\\[", colnames(samples_matrix))],
+        betaP = samples_matrix[idx, grep("^omega_p\\[", colnames(samples_matrix))]
       )
 
       # Simulate
