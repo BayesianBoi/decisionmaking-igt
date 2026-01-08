@@ -92,7 +92,7 @@ model_file <- "models/orl.txt"
 params <- c(
   "mu_a_rew", "mu_a_pun", "mu_K", "mu_theta", "mu_omega_f", "mu_omega_p",
   "lambda_a_rew", "lambda_a_pun", "lambda_K", "lambda_theta", "lambda_omega_f", "lambda_omega_p",
-  "a_rew", "a_pun", "K", "theta", "omega_f", "omega_p", "p"
+  "a_rew", "a_pun", "K", "theta", "omega_f", "omega_p"
 )
 
 cat("Fitting hierarchical ORL model for group:", target_group, "...\n")
