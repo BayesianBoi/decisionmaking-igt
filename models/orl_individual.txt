@@ -34,24 +34,33 @@ model {
   
   for (t in 2:ntrials) {
     
+    # Getting the "sign" of the payoff from the previous choice
     signX[t] <- ifelse(X[t-1] < 0, -1, 1)
     
     for (d in 1:4) {
       
-      # Update expected values
-      Ev_update[t,d] <- Ev[t-1,d] + a_rew * (X[t-1] - Ev[t-1,d])
-      Ev_not[t,d] <- Ev[t-1,d] + a_pun * (0 - Ev[t-1,d])
-      Ev[t,d] <- ifelse(d == x[t-1], Ev_update[t,d], Ev_not[t,d])
+      # -------- Updating expected values ------------------------
+      Ev_update[t,d] <- ifelse(X[t-1] >= 0,
+                               Ev[t-1,d] + a_rew * (X[t-1] - Ev[t-1,d]), 
+                               Ev[t-1,d] + a_pun * (X[t-1] - Ev[t-1,d])
+      )
       
-      # Update expected frequencies
-      Ef_cho[t,d] <- ifelse(X[t-1] >= 0,
+      Ev[t,d] <- ifelse(d == x[t-1], Ev_update[t,d], Ev[t-1,d])
+      
+      # -------- Updating expected frequencies ------------------------
+      # Update expected frequencies for ALL decks - AS IF THEY WERE ALL CHOSEN
+      Ef_cho[t,d] <- ifelse(X[t-1] >= 0, 
                             Ef[t-1,d] + a_rew * (signX[t] - Ef[t-1,d]),
-                            Ef[t-1,d] + a_pun * (signX[t] - Ef[t-1,d]))
+                            Ef[t-1,d] + a_pun * (signX[t] - Ef[t-1,d])
+      )
       
-      Ef_not[t,d] <- ifelse(X[t-1] >= 0,
+      # Update expected frequencies for ALL decks - AS IF THEY WERE ALL UNCHOSEN (reversal learning)
+      Ef_not[t,d] <- ifelse(X[t-1] >= 0, 
                             Ef[t-1,d] + a_pun * (-(signX[t]/3) - Ef[t-1,d]),
-                            Ef[t-1,d] + a_rew * (-(signX[t]/3) - Ef[t-1,d]))
+                            Ef[t-1,d] + a_rew * (-(signX[t]/3) - Ef[t-1,d])
+      )
       
+      # Copy appropriate values to Ef variable
       Ef[t,d] <- ifelse(d == x[t-1], Ef_cho[t,d], Ef_not[t,d])
       
       # Perseverance
