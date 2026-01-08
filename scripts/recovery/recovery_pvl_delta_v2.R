@@ -37,7 +37,7 @@ precision_to_sd <- function(lambda) {
 }
 
 # Source dependencies
-source("scripts/recovery/simulation_pvl_delta.R")
+source("scripts/recovery/simulation_pvl_delta_v2.R")
 source("utils/payoff_scheme.R")
 source("scripts/plotting/plotting_utils.R")
 
@@ -118,7 +118,7 @@ run_iteration <- function(i) {
         data = jags_data,
         inits = NULL,
         parameters.to.save = params,
-        model.file = "models/pvl_delta.txt",
+        model.file = "models/pvl_delta_v2.txt",
         n.chains = 3,
         n.iter = 3000,
         n.burnin = 1000,

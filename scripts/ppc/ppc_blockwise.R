@@ -112,8 +112,10 @@ if (!"p" %in% names(fit$BUGSoutput$sims.list)) {
     # We have the p parameter, so we can compare predicted vs observed
     p_array <- fit$BUGSoutput$sims.list$p
     n_samples <- dim(p_array)[1]
+    n_trials_p <- dim(p_array)[3]
 
-    cat("Computing predicted block preferences from", n_samples, "posterior samples...\n\n")
+    cat("Computing predicted block preferences from", n_samples, "posterior samples...\n")
+    cat("p array has", n_trials_p, "trials\n\n")
 
     # Average choice probability across posterior samples
     p_mean <- apply(p_array, c(2, 3, 4), mean)
@@ -124,10 +126,13 @@ if (!"p" %in% names(fit$BUGSoutput$sims.list)) {
     for (s in seq_len(n_subs)) {
         for (b in seq_len(n_blocks)) {
             start_trial <- (b - 1) * trials_per_block + 1
-            end_trial <- min(b * trials_per_block, 100)
+            end_trial <- min(b * trials_per_block, n_trials_p)
 
             for (d in 1:4) {
-                predicted_block[s, b, d] <- sum(p_mean[s, start_trial:end_trial, d])
+                # Handle case where p array might have fewer trials
+                if (end_trial >= start_trial && end_trial <= n_trials_p) {
+                    predicted_block[s, b, d] <- sum(p_mean[s, start_trial:end_trial, d], na.rm = TRUE)
+                }
             }
         }
     }
