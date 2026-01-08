@@ -13,7 +13,7 @@ SESSION_NAME="PVL_Delta_Recovery"
 NUM_JOBS=10
 ITER_PER_JOB=10
 BASE_SEED=3001
-OUTPUT_DIR="outputs/recovery/parts_pvl_delta"
+OUTPUT_DIR="outputs/recovery/pvl_delta"
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -29,14 +29,14 @@ tmux new-session -d -s $SESSION_NAME -n "Recovery"
 
 # Launch first job in the initial pane
 SEED=$BASE_SEED
-OUTPUT="$OUTPUT_DIR/recovery_pvl_delta_batch_${SEED}.rds"
+OUTPUT="$OUTPUT_DIR/batch_${SEED}.rds"
 CMD="Rscript scripts/recovery/recovery_pvl_delta_batch.R --seed $SEED --iter $ITER_PER_JOB --output $OUTPUT; echo 'Job $SEED Done. Press Enter to close.'; read"
 tmux send-keys -t $SESSION_NAME "$CMD" C-m
 
 # Launch remaining jobs in new panes
 for ((i=2; i<=NUM_JOBS; i++)); do
     SEED=$((BASE_SEED + i - 1))
-    OUTPUT="$OUTPUT_DIR/recovery_pvl_delta_batch_${SEED}.rds"
+    OUTPUT="$OUTPUT_DIR/batch_${SEED}.rds"
     CMD="Rscript scripts/recovery/recovery_pvl_delta_batch.R --seed $SEED --iter $ITER_PER_JOB --output $OUTPUT; echo 'Job $SEED Done. Press Enter to close.'; read"
     
     tmux split-window -t $SESSION_NAME

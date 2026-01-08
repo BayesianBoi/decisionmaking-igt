@@ -12,7 +12,7 @@
 SESSION_NAME="EEF_Recovery"
 NUM_JOBS=10
 ITERS_PER_JOB=10
-OUTPUT_DIR="outputs/recovery/parts_eef"
+OUTPUT_DIR="outputs/recovery/eef"
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -28,7 +28,7 @@ tmux new-session -d -s $SESSION_NAME
 
 for i in $(seq 1 $NUM_JOBS); do
     SEED=$((1000 + i))
-    OUT_FILE="${OUTPUT_DIR}/recovery_eef_batch_${SEED}.rds"
+    OUT_FILE="${OUTPUT_DIR}/batch_${SEED}.rds"
     
     CMD="Rscript scripts/recovery/recovery_eef_batch.R --seed $SEED --iter $ITERS_PER_JOB --output $OUT_FILE; echo 'Job $i Done. Press Enter to close.'; read"
 

@@ -70,9 +70,11 @@ for (s in 1:nsubs) {
   x_sub <- subj_df$choice
   length(x_sub) <- ntrials_max
 
-  # Pad outcomes (X) - NO scaling for PVL-Delta
-  # Unlike ORL/EEF which use direct value learning, PVL uses X^A where
-  # scaling changes the interpretation of A. Class implementation does not scale.
+  # Pad outcomes (X) - we do not scale outcomes for PVL-Delta
+  # Unlike ORL and EEF where outcomes are used directly in value updates,
+  # PVL uses a power function (X^A). Scaling would fundamentally change
+  # the interpretation of the shape parameter A, so we stick to the original
+  # parameters from the class implementation.
   X_sub <- subj_df$gain + subj_df$loss
   length(X_sub) <- ntrials_max
 
