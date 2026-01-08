@@ -60,11 +60,10 @@ prep_group_data <- function(data, study_label) {
         length(x_sub) <- ntrials_max
         x_all[s, ] <- x_sub
 
-        # RAW Outcomes -> SCALED
+        # RAW Outcomes (unscaled for PVL-Delta power utility)
         X_raw <- subj_df$gain + subj_df$loss
-        X_sub <- X_raw / 100
-        length(X_sub) <- ntrials_max
-        X_all[s, ] <- X_sub
+        length(X_raw) <- ntrials_max
+        X_all[s, ] <- X_raw
     }
 
     return(list(
@@ -101,7 +100,7 @@ params <- c(
 output_dir <- "outputs/group_comparison"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-model_file <- "analysis/models/pvl_delta_compare.txt"
+model_file <- "models/pvl_delta_compare.txt"
 
 cat("Fitting Joint Model...\n")
 start_time <- Sys.time()

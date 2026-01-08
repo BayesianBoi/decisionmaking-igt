@@ -148,4 +148,57 @@ if (all(file.exists(unlist(eef_files)))) {
     cat("Skipping EEF (files missing)\n")
 }
 
+# ==============================================================================
+# PVL-DELTA PLOTTING
+# ==============================================================================
+
+cat("Processing PVL-Delta...\n")
+
+pvl_files <- list(
+    HC = "outputs/pvl_delta/pvl_delta_fit_HC.rds",
+    Amph = "outputs/pvl_delta/pvl_delta_fit_Amph.rds",
+    Hero = "outputs/pvl_delta/pvl_delta_fit_Hero.rds"
+)
+
+if (all(file.exists(unlist(pvl_files)))) {
+    pvl_params <- c("mu_A", "mu_a", "mu_w", "mu_theta")
+    pvl_labels <- c(
+        "Outcome Sensitivity (A)",
+        "Learning Rate (a)",
+        "Loss Aversion (w)",
+        "Response Consistency (theta)"
+    )
+
+    pvl_posteriors <- data.frame()
+
+    for (grp in names(pvl_files)) {
+        fit <- readRDS(pvl_files[[grp]])
+
+        for (i in seq_along(pvl_params)) {
+            vals <- extract_mu(fit, pvl_params[i])
+
+            if (!is.null(vals)) {
+                df <- data.frame(
+                    value = vals,
+                    group = grp,
+                    param = pvl_labels[i]
+                )
+                pvl_posteriors <- rbind(pvl_posteriors, df)
+            }
+        }
+    }
+
+    if (nrow(pvl_posteriors) > 0) {
+        pvl_posteriors$group <- factor(pvl_posteriors$group, levels = c("HC", "Amph", "Hero"))
+
+        p_pvl <- plot_violins(pvl_posteriors, "PVL-Delta Model: Group-Level Parameter Posteriors", ncol = 2)
+
+        ggsave(file.path(output_dir, "pvl_delta_group_posteriors.png"), p_pvl, width = 10, height = 8, dpi = 300)
+        ggsave(file.path(output_dir, "pvl_delta_group_posteriors.pdf"), p_pvl, width = 10, height = 8)
+        cat("PVL-Delta plots saved.\n")
+    }
+} else {
+    cat("Skipping PVL-Delta (files missing)\n")
+}
+
 cat("Done.\n")

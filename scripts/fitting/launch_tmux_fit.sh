@@ -10,7 +10,7 @@
 # ==============================================================================
 
 SESSION_NAME="Model_Fitting"
-OUTPUT_DIR="analysis/outputs"
+OUTPUT_DIR="outputs"
 
 # Models and Groups to iterate over
 MODELS=("pvl_delta" "orl" "eef")
@@ -36,7 +36,7 @@ for MODEL in "${MODELS[@]}"; do
         JOB_COUNT=$((JOB_COUNT + 1))
         
         # Script path
-        SCRIPT="analysis/1_analysis/0_Fitting/fit_${MODEL}.R"
+        SCRIPT="scripts/fitting/fit_${MODEL}.R"
         
         # Command to run
         CMD="Rscript $SCRIPT $GROUP; echo 'Job ${MODEL}-${GROUP} Done. Press Enter to close.'; read"

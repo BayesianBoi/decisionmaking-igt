@@ -65,13 +65,17 @@ label_map <- list(
     "alpha_a_rew" = "Reward Learning Rate",
     "alpha_a_pun" = "Punishment Learning Rate",
     "alpha_K" = "Perseverance Decay",
-    "alpha_theta" = "Choice Consistency",
     "alpha_omega_f" = "Frequency Weight",
     "alpha_omega_p" = "Perseverance Weight",
     # EEF parameters
+    "alpha_theta" = "Outcome Sensitivity",
     "alpha_lambda" = "Forgetting Rate",
     "alpha_phi" = "Exploration Bonus",
-    "alpha_cons" = "Choice Consistency"
+    "alpha_cons" = "Choice Consistency",
+    # PVL-Delta parameters
+    "alpha_A" = "Outcome Sensitivity (A)",
+    "alpha_a" = "Learning Rate (a)",
+    "alpha_w" = "Loss Aversion (w)"
 )
 
 # Collect all samples into a data frame for plotting
