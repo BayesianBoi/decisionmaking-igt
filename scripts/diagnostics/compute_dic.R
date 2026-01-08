@@ -1,36 +1,37 @@
 #!/usr/bin/env Rscript
-# compute_dic.R
-# -------------
-# Compares models using DIC (Deviance Information Criterion).
+# COMPUTE DIC
 #
-# DIC is computed automatically by JAGS during fitting and stored in the
-# fit object. It balances goodness of fit against model complexity:
-#   DIC = D_bar + pD
-#   D_bar = mean deviance (how well the model fits)
-#   pD = effective number of parameters (complexity penalty)
+# Compares models using DIC (Deviance Information Criterion). JAGS computes
+# this automatically during fitting so we just need to read it out.
 #
-# Lower DIC = better model. A difference of 5-10 is meaningful.
+# DIC = D_bar + pD
+#   D_bar is the mean deviance across posterior samples (goodness of fit)
+#   pD is the effective number of parameters (penalty for complexity)
 #
-# Usage: Rscript compute_dic.R <group>
-# Example: Rscript compute_dic.R HC
+# Lower DIC means better. A difference of 5 to 10 is worth noting.
+# Differences under 2 are not meaningful.
+#
+# Run from project root with group as argument.
+# Example call from terminal
+#   Rscript scripts/diagnostics/compute_dic.R HC
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 1) {
-    stop("Usage: Rscript compute_dic.R <group>")
+    stop("Usage requires group argument. For example HC")
 }
 
 group <- args[1]
 
 valid_groups <- c("HC", "Amph", "Hero")
 if (!group %in% valid_groups) {
-    stop("Invalid group. Use: HC, Amph, or Hero")
+    stop("Invalid group. Must be one of HC, Amph, or Hero")
 }
 
 cat("\n========================================\n")
-cat("DIC Model Comparison:", group, "\n")
+cat("DIC Model Comparison", group, "\n")
 cat("========================================\n\n")
 
-# Models to compare
+# Models we want to compare
 models <- c("orl", "eef", "pvl_delta")
 
 results <- data.frame(
@@ -52,11 +53,11 @@ for (model_name in models) {
 
     fit <- readRDS(fit_file)
 
-    # DIC is stored in the BUGSoutput
+    # DIC and pD are stored in the BUGSoutput slot
     dic <- fit$BUGSoutput$DIC
     pd <- fit$BUGSoutput$pD
 
-    # D_bar = DIC - pD
+    # D_bar is the fit component before the complexity penalty
     dbar <- dic - pd
 
     results <- rbind(results, data.frame(
@@ -68,10 +69,10 @@ for (model_name in models) {
         stringsAsFactors = FALSE
     ))
 
-    cat(model_name, ":\n")
-    cat("  DIC:", round(dic, 2), "\n")
-    cat("  pD (effective params):", round(pd, 2), "\n")
-    cat("  D_bar (mean deviance):", round(dbar, 2), "\n\n")
+    cat(model_name, "\n")
+    cat("  DIC", round(dic, 2), "\n")
+    cat("  pD (effective params)", round(pd, 2), "\n")
+    cat("  D_bar (mean deviance)", round(dbar, 2), "\n\n")
 }
 
 if (nrow(results) < 2) {
@@ -79,7 +80,7 @@ if (nrow(results) < 2) {
     quit()
 }
 
-# Sort by DIC (lower is better)
+# Sort by DIC where lower is better
 results <- results[order(results$DIC), ]
 
 cat("========================================\n")
@@ -89,11 +90,11 @@ cat("========================================\n\n")
 for (i in seq_len(nrow(results))) {
     row <- results[i, ]
     if (i == 1) {
-        cat("  1.", row$model, "- DIC:", round(row$DIC, 2), "(BEST)\n")
+        cat("  1.", row$model, "- DIC", round(row$DIC, 2), "(BEST)\n")
     } else {
         delta <- row$DIC - results$DIC[1]
         cat(
-            " ", paste0(i, "."), row$model, "- DIC:", round(row$DIC, 2),
+            " ", paste0(i, "."), row$model, "- DIC", round(row$DIC, 2),
             "(+", round(delta, 2), ")\n"
         )
     }
@@ -104,20 +105,20 @@ best_model <- results$model[1]
 if (nrow(results) >= 2) {
     delta_dic <- results$DIC[2] - results$DIC[1]
 
-    cat("\nDelta DIC (2nd - 1st):", round(delta_dic, 2), "\n")
+    cat("\nDelta DIC (2nd - 1st)", round(delta_dic, 2), "\n")
 
     if (delta_dic < 2) {
-        cat("Interpretation: Models are essentially equivalent.\n")
+        cat("The models are too close to distinguish\n")
     } else if (delta_dic < 5) {
-        cat("Interpretation: Weak evidence for", best_model, "\n")
+        cat("Weak evidence favouring", best_model, "\n")
     } else if (delta_dic < 10) {
-        cat("Interpretation: Moderate evidence for", best_model, "\n")
+        cat("Moderate evidence favouring", best_model, "\n")
     } else {
-        cat("Interpretation: Strong evidence for", best_model, "\n")
+        cat("Strong evidence favouring", best_model, "\n")
     }
 }
 
-# Save results
+# Save results to disk
 output_file <- file.path("outputs", paste0("dic_comparison_", group, ".csv"))
 write.csv(results, output_file, row.names = FALSE)
-cat("\nResults saved:", output_file, "\n")
+cat("\nResults saved to", output_file, "\n")
