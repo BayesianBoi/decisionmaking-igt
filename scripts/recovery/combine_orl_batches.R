@@ -128,26 +128,28 @@ plot_dir <- "plots/recovery"
 dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 
 cat("Generating combined plots...\n")
-# Means
-p1 <- plot_recovery(true_mu_a_rew, infer_mu_a_rew, "Reward Rate (A+)")
-p2 <- plot_recovery(true_mu_a_pun, infer_mu_a_pun, "Punish Rate (A-)")
+# Means with meaningful titles
+p1 <- plot_recovery(true_mu_a_rew, infer_mu_a_rew, "Reward Learning (A_rew)")
+p2 <- plot_recovery(true_mu_a_pun, infer_mu_a_pun, "Punishment Learning (A_pun)")
 p3 <- plot_recovery(true_mu_K, infer_mu_K, "Decay (K)")
-p5 <- plot_recovery(true_mu_omega_f, infer_mu_omega_f, "Freq Weight (omega_f)")
-p6 <- plot_recovery(true_mu_omega_p, infer_mu_omega_p, "Pers Weight (omega_p)")
+p4 <- plot_recovery(true_mu_omega_f, infer_mu_omega_f, "Frequency Weight (omega_f)")
+p5 <- plot_recovery(true_mu_omega_p, infer_mu_omega_p, "Perseverance (omega_p)")
 
-final_plot <- ggarrange(p1, p2, p3, p5, p6, nrow = 2, ncol = 3)
-ggsave(file.path(output_dir, "recovery_orl_batch.png"), final_plot, width = 15, height = 10)
-
-# Sigmas
-s1 <- plot_recovery(true_sigma_a_rew, infer_sigma_a_rew, "Sigma A+")
-s2 <- plot_recovery(true_sigma_a_pun, infer_sigma_a_pun, "Sigma A-")
+# Sigmas with meaningful titles
+s1 <- plot_recovery(true_sigma_a_rew, infer_sigma_a_rew, "Sigma A_rew")
+s2 <- plot_recovery(true_sigma_a_pun, infer_sigma_a_pun, "Sigma A_pun")
 s3 <- plot_recovery(true_sigma_K, infer_sigma_K, "Sigma K")
-s5 <- plot_recovery(true_sigma_omega_f, infer_sigma_omega_f, "Sigma Freq")
-s6 <- plot_recovery(true_sigma_omega_p, infer_sigma_omega_p, "Sigma Pers")
+s4 <- plot_recovery(true_sigma_omega_f, infer_sigma_omega_f, "Sigma Omega_F")
+s5 <- plot_recovery(true_sigma_omega_p, infer_sigma_omega_p, "Sigma Omega_P")
 
-final_sigma_plot <- ggarrange(s1, s2, s3, s5, s6, nrow = 2, ncol = 3)
-ggsave(file.path(output_dir, "recovery_orl_sigma_batch.png"), final_sigma_plot, width = 15, height = 10)
+# Combined plot: 5 columns x 2 rows (means on top, sigmas on bottom)
+combined_plot <- ggarrange(
+    p1, p2, p3, p4, p5, # Row 1: all means
+    s1, s2, s3, s4, s5, # Row 2: all sigmas
+    nrow = 2, ncol = 5
+)
 
+ggsave(file.path(plot_dir, "recovery_orl_combined.png"), combined_plot, width = 25, height = 10)
 print(paste("Combined plot saved to:", file.path(plot_dir, "recovery_orl_combined.png")))
 
 
