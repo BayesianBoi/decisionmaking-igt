@@ -76,13 +76,15 @@ if (!file.exists(model_file)) {
     stop("Model file not found: ", model_file)
 }
 
-# 5. Fit Each Subject Individually and Compute PPC
+# 5. Fit Each Subject Individually and Compute PPC (PARALLEL)
 # ------------------------------------------------------------------------------
-pred_success <- numeric(nsubs)
+n_cores <- detectCores() - 1 # Leave 1 core free
+cat("Using", n_cores, "cores for parallel processing\n")
 
 start_time <- Sys.time()
 
-for (s in 1:nsubs) {
+# Define function to process single subject
+process_subject <- function(s) {
     subj_df <- raw_data[raw_data$subj == subIDs[s], ]
     ntrials <- nrow(subj_df)
 
@@ -99,18 +101,18 @@ for (s in 1:nsubs) {
     params <- c("p")
 
     # Fit this subject individually
-    tryCatch(
+    result <- tryCatch(
         {
-            fit <- jags.parallel(
+            fit <- jags(
                 data = jags_data,
                 inits = NULL,
                 parameters.to.save = params,
                 model.file = model_file,
-                n.chains = 4,
-                n.iter = 8000,
-                n.burnin = 1600,
+                n.chains = 3,
+                n.iter = 6000,
+                n.burnin = 1000,
                 n.thin = 1,
-                n.cluster = 4
+                quiet = TRUE
             )
 
             # Extract p and compute one-step-ahead accuracy
@@ -129,16 +131,20 @@ for (s in 1:nsubs) {
                 x_predict[t] <- which.max(p_predict)
             }
 
-            pred_success[s] <- sum(x_predict[2:ntrials] == x[2:ntrials], na.rm = TRUE) / (ntrials - 1)
+            acc <- sum(x_predict[2:ntrials] == x[2:ntrials], na.rm = TRUE) / (ntrials - 1)
+            cat(sprintf("Subject %d/%d: accuracy = %.3f\n", s, nsubs, acc))
+            acc
         },
         error = function(e) {
-            cat(sprintf("  Subject %d: ERROR - %s\n", s, e$message))
-            pred_success[s] <<- NA
+            cat(sprintf("Subject %d: ERROR - %s\n", s, e$message))
+            NA
         }
     )
-
-    cat(sprintf("Subject %d/%d: accuracy = %.3f\n", s, nsubs, pred_success[s]))
+    return(result)
 }
+
+# Run in parallel
+pred_success <- unlist(mclapply(1:nsubs, process_subject, mc.cores = n_cores))
 
 end_time <- Sys.time()
 cat("\nTotal time:", difftime(end_time, start_time, units = "mins"), "minutes\n")
