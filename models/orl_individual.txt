@@ -3,13 +3,13 @@
 
 model {
   
-  # Subject-level priors (matching hierarchical - no truncation)
-  a_rew ~ dnorm(0, 1)     # Learning rate for rewards
-  a_pun ~ dnorm(0, 1)     # Learning rate for punishments
-  K ~ dnorm(0, 1)         # Decay parameter
-  theta ~ dnorm(0, 1)     # Inverse temperature
-  omega_f ~ dnorm(0, .1)  # Frequency weight
-  omega_p ~ dnorm(0, .1)  # Perseverance weight
+  # Subject-level priors (matching hierarchical with truncation)
+  a_rew ~ dnorm(0, 1)T(0,1)     # Learning rate for rewards
+  a_pun ~ dnorm(0, 1)T(0,1)     # Learning rate for punishments
+  K ~ dnorm(0, 1)T(0,)          # Decay parameter
+  theta <- 1                     # Fixed to 1 (matching hierarchical)
+  omega_f ~ dnorm(0, .1)        # Frequency weight
+  omega_p ~ dnorm(0, .1)        # Perseverance weight
   
   # Initialize trial 1
   Ev[1,1] <- 0
