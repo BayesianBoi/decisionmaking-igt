@@ -1,0 +1,62 @@
+# Non-hierarchical EEF model for single subject
+# Priors matched to hierarchical model (with truncation)
+
+model {
+  
+  # Subject-level priors (matching hierarchical with truncation)
+  theta ~ dnorm(0, 1)T(0, 1)    # Outcome sensitivity
+  lambda ~ dnorm(0, 1)T(0, 1)   # Forgetting/learning rate
+  phi ~ dnorm(0, 1)T(-5, 5)     # Exploration bonus
+  cons ~ dnorm(0, 1)T(0, 5)     # Consistency (beta)
+  
+  # Initialization - all decks start equal
+  for (d in 1:4) {
+    Exploit[1, d] <- 0
+    Explore[1, d] <- 0
+  }
+  
+  # Initial choice probabilities
+  p[1,1] <- .25
+  p[1,2] <- .25
+  p[1,3] <- .25
+  p[1,4] <- .25
+  
+  # Consistency transformation: C = 3^beta - 1
+  C <- pow(3, cons) - 1
+  
+  for (t in 2:ntrials) {
+    
+    # Calculate utility of previous outcome
+    u[t] <- ifelse(X[t-1] >= 0, 
+                   abs(X[t-1])^theta, 
+                   -1 * abs(X[t-1])^theta)
+    
+    for (d in 1:4) {
+      
+      # Update Exploitation values
+      Exploit_update[t, d] <- (1 - lambda) * Exploit[t-1, d] + lambda * u[t]
+      Exploit_no_update[t, d] <- (1 - lambda) * Exploit[t-1, d]
+      
+      # Update Exploration values
+      Explore_update[t, d] <- (1 - lambda) * Explore[t-1, d] + lambda * phi
+      Explore_no_update[t, d] <- 0
+      
+      # Apply updates based on choice
+      Exploit[t, d] <- ifelse(d == x[t-1], Exploit_update[t, d], Exploit_no_update[t, d])
+      Explore[t, d] <- ifelse(d == x[t-1], Explore_no_update[t, d], Explore_update[t, d])
+      
+      # Total value
+      V[t, d] <- Exploit[t, d] + Explore[t, d]
+      
+      # Softmax step 1
+      exp_p[t, d] <- exp(C * V[t, d])
+    }
+    
+    for (d in 1:4) {
+      # Softmax step 2
+      p[t, d] <- exp_p[t, d] / sum(exp_p[t, ])
+    }
+    
+    x[t] ~ dcat(p[t, ])
+  }
+}
