@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Modified Iowa Gambling Task (IGT) — Schematic</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            color: #1a1a1a;
+            background: #ffffff;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        main {
+            width: 1000px;
+            max-width: 100%;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .caption {
+            font-size: 14px;
+            line-height: 1.5;
+            margin-top: 12px;
+            color: #444;
+            max-width: 800px;
+        }
+
+        @media print {
+            main {
+                margin: 0;
+                width: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <!-- Height increased to accommodate dynamic block visualization -->
+        <svg viewBox="0 0 1000 950" width="100%" height="auto" role="img"
+            aria-label="Schematic of the Modified Iowa Gambling Task with ramping payoff structure">
+            <defs>
+                <!-- Gradients -->
+                <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#f7f7f7;stop-opacity:1" />
+                </linearGradient>
+
+                <!-- Drop Shadow -->
+                <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.1" />
+                </filter>
+
+                <filter id="shadow-sm" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000000" flood-opacity="0.15" />
+                </filter>
+
+                <!-- Arrow Marker -->
+                <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                    <path d="M 0 0 L 8 4 L 0 8" fill="#555" />
+                </marker>
+
+                <!-- Card Patterns/Fills -->
+                <pattern id="diagonalHatch" width="10" height="10" patternTransform="rotate(45 0 0)"
+                    patternUnits="userSpaceOnUse">
+                    <line x1="0" y1="0" x2="0" y2="10" style="stroke:#000000; stroke-width:1; stroke-opacity:0.05" />
+                </pattern>
+            </defs>
+
+            <style>
+                .text-main {
+                    font-size: 14px;
+                    fill: #222;
+                }
+
+                .text-muted {
+                    font-size: 12px;
+                    fill: #666;
+                }
+
+                .text-bold {
+                    font-weight: 700;
+                }
+
+                .text-title {
+                    font-size: 20px;
+                    font-weight: 700;
+                    fill: #111;
+                }
+
+                .text-label {
+                    font-size: 16px;
+                    font-weight: 600;
+                    fill: #333;
+                }
+
+                .text-value {
+                    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                    font-weight: 600;
+                }
+
+                .deck-group {
+                    cursor: default;
+                }
+
+                .card-back {
+                    fill: url(#cardGrad);
+                    stroke: #ddd;
+                    stroke-width: 1;
+                    filter: url(#shadow);
+                }
+
+                .stack-card {
+                    fill: #fff;
+                    stroke: #e0e0e0;
+                    stroke-width: 1;
+                }
+
+                /* Accents for Decks */
+                .accent-bad {
+                    stroke: #d32f2f;
+                    stroke-width: 0;
+                    fill: #d32f2f;
+                }
+
+                .accent-good {
+                    stroke: #2e7d32;
+                    stroke-width: 0;
+                    fill: #2e7d32;
+                }
+
+                .text-bad {
+                    fill: #c62828;
+                }
+
+                .text-good {
+                    fill: #2e7d32;
+                }
+
+                /* New styles for block visualization */
+                .block-rect-bad {
+                    fill: #ffebee;
+                    stroke: #ffcdd2;
+                }
+
+                .block-rect-good {
+                    fill: #e8f5e9;
+                    stroke: #c8e6c9;
+                }
+
+                .axis-line {
+                    stroke: #ccc;
+                    stroke-width: 1;
+                }
+
+                .flow-line {
+                    stroke: #999;
+                    stroke-width: 1.5;
+                    fill: none;
+                    marker-end: url(#arrow);
+                }
+            </style>
+
+            <!-- Main Title Block -->
+            <text x="30" y="45" class="text-title">Modified Iowa Gambling Task (IGT)</text>
+            <text x="30" y="70" class="text-main" style="fill:#555">
+                Bechara et al. (2001) version. Payoffs change across 6 blocks of 10 cards
+            </text>
+
+            <!-- Grid Container -->
+            <g transform="translate(30, 100)">
+
+                <!-- Section: Disadvantageous Decks (Left Column) -->
+                <text x="0" y="-10" class="text-label text-bad"
+                    style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">▼ Disadvantageous &nbsp;
+                    (Ramping Losses)</text>
+                <rect x="-10" y="5" width="460" height="480" rx="12" fill="#fff5f5" stroke="none" />
+
+                <!-- DECK A (Top Left) -->
+                <g transform="translate(20, 30)" class="deck-group">
+                    <text x="60" y="-8" class="text-label">Deck A</text>
+                    <rect x="5" y="5" width="120" height="170" rx="6" class="stack-card" transform="rotate(3 65 90)" />
+                    <rect x="2" y="2" width="120" height="170" rx="6" class="stack-card" transform="rotate(-2 65 90)" />
+                    <rect x="0" y="0" width="120" height="170" rx="6" class="card-back" />
+                    <rect x="6" y="6" width="108" height="158" rx="4" fill="url(#diagonalHatch)" />
+                    <circle cx="60" cy="85" r="25" fill="#fff" stroke="#e0e0e0" stroke-width="1" />
+                    <text x="60" y="90" text-anchor="middle" class="text-title text-bad">A</text>
+
+                    <!-- Details -->
+                    <g transform="translate(140, 10)">
+                        <text x="0" y="20" class="text-label text-bold">Gain: Depends on Block</text>
+                        <text x="0" y="55" class="text-main text-bad">High loss frequency (50%)</text>
+                        <text x="0" y="80" class="text-muted">Avg Loss: Ramps up significantly</text>
+                        <text x="0" y="105" class="text-value text-bad" style="font-size: 14px;">Net (Block 1): -$250 /
+                            10 cards</text>
+                        <text x="0" y="125" class="text-value text-bad" style="font-size: 14px;">Net (Block 6): -$1000 /
+                            10 cards</text>
+                        <text x="0" y="145" class="text-muted" style="font-size:12px; font-style:italic">(-$150 per
+                            block)</text>
+                    </g>
+                </g>
+
+                <!-- DECK B (Bottom Left) -->
+                <g transform="translate(20, 260)" class="deck-group">
+                    <text x="60" y="-8" class="text-label">Deck B</text>
+                    <rect x="5" y="5" width="120" height="170" rx="6" class="stack-card" transform="rotate(2 65 90)" />
+                    <rect x="2" y="2" width="120" height="170" rx="6" class="stack-card" transform="rotate(-1 65 90)" />
+                    <rect x="0" y="0" width="120" height="170" rx="6" class="card-back" />
+                    <rect x="6" y="6" width="108" height="158" rx="4" fill="url(#diagonalHatch)" />
+                    <circle cx="60" cy="85" r="25" fill="#fff" stroke="#e0e0e0" stroke-width="1" />
+                    <text x="60" y="90" text-anchor="middle" class="text-title text-bad">B</text>
+
+                    <!-- Details -->
+                    <g transform="translate(140, 10)">
+                        <text x="0" y="20" class="text-label text-bold">Gain: Depends on Block</text>
+                        <text x="0" y="55" class="text-main text-bad">Low loss frequency (10%)</text>
+                        <text x="0" y="80" class="text-muted">Huge but rare losses</text>
+                        <text x="0" y="105" class="text-value text-bad" style="font-size: 14px;">Net (Block 1): -$250 /
+                            10 cards</text>
+                        <text x="0" y="125" class="text-value text-bad" style="font-size: 14px;">Net (Block 6): -$1000 /
+                            10 cards</text>
+                        <text x="0" y="145" class="text-muted" style="font-size:12px; font-style:italic">(-$150 per
+                            block)</text>
+                    </g>
+                </g>
+
+
+                <!-- Section: Advantageous Decks (Right Column) -->
+                <g transform="translate(480, 0)">
+                    <text x="0" y="-10" class="text-label text-good"
+                        style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">▲ Advantageous &nbsp;
+                        (Ramping Gains)</text>
+                    <rect x="-10" y="5" width="460" height="480" rx="12" fill="#f1f8e9" stroke="none" />
+
+                    <!-- DECK C (Top Right) -->
+                    <g transform="translate(20, 30)" class="deck-group">
+                        <text x="60" y="-8" class="text-label">Deck C</text>
+                        <rect x="5" y="5" width="120" height="170" rx="6" class="stack-card"
+                            transform="rotate(1 65 90)" />
+                        <rect x="2" y="2" width="120" height="170" rx="6" class="stack-card"
+                            transform="rotate(-3 65 90)" />
+                        <rect x="0" y="0" width="120" height="170" rx="6" class="card-back" />
+                        <rect x="6" y="6" width="108" height="158" rx="4" fill="url(#diagonalHatch)" />
+                        <circle cx="60" cy="85" r="25" fill="#fff" stroke="#e0e0e0" stroke-width="1" />
+                        <text x="60" y="90" text-anchor="middle" class="text-title text-good">C</text>
+
+                        <!-- Details -->
+                        <g transform="translate(140, 10)">
+                            <text x="0" y="20" class="text-label text-bold">Gain: Depends on Block</text>
+                            <text x="0" y="55" class="text-main text-good">High loss frequency (50%)</text>
+                            <text x="0" y="80" class="text-muted">Small, frequent losses</text>
+                            <text x="0" y="105" class="text-value text-good" style="font-size: 14px;">Net (Block 1):
+                                +$250 / 10 cards</text>
+                            <text x="0" y="125" class="text-value text-good" style="font-size: 14px;">Net (Block 6):
+                                +$375 / 10 cards</text>
+                            <text x="0" y="145" class="text-muted" style="font-size:12px; font-style:italic">(+$25 per
+                                block)</text>
+                        </g>
+                    </g>
+
+                    <!-- DECK D (Bottom Right) -->
+                    <g transform="translate(20, 260)" class="deck-group">
+                        <text x="60" y="-8" class="text-label">Deck D</text>
+                        <rect x="5" y="5" width="120" height="170" rx="6" class="stack-card"
+                            transform="rotate(2 65 90)" />
+                        <rect x="2" y="2" width="120" height="170" rx="6" class="stack-card"
+                            transform="rotate(-1 65 90)" />
+                        <rect x="0" y="0" width="120" height="170" rx="6" class="card-back" />
+                        <rect x="6" y="6" width="108" height="158" rx="4" fill="url(#diagonalHatch)" />
+                        <circle cx="60" cy="85" r="25" fill="#fff" stroke="#e0e0e0" stroke-width="1" />
+                        <text x="60" y="90" text-anchor="middle" class="text-title text-good">D</text>
+
+                        <!-- Details -->
+                        <g transform="translate(140, 10)">
+                            <text x="0" y="20" class="text-label text-bold">Gain: Depends on Block</text>
+                            <text x="0" y="55" class="text-main text-good">Low loss frequency (10%)</text>
+                            <text x="0" y="80" class="text-muted">Rare but manageable losses</text>
+                            <text x="0" y="105" class="text-value text-good" style="font-size: 14px;">Net (Block 1):
+                                +$250 / 10 cards</text>
+                            <text x="0" y="125" class="text-value text-good" style="font-size: 14px;">Net (Block 6):
+                                +$375 / 10 cards</text>
+                            <text x="0" y="145" class="text-muted" style="font-size:12px; font-style:italic">(+$25 per
+                                block)</text>
+                        </g>
+                    </g>
+                </g>
+            </g>
+
+            <!-- New Section: Payoff Evolution (Graph) -->
+            <g transform="translate(30, 620)">
+                <rect x="-10" y="0" width="940" height="280" rx="12" fill="#fff" stroke="#ddd" stroke-width="1"
+                    filter="url(#shadow-sm)" />
+                <text x="30" y="30" class="text-label">Payoff Dynamics Across 6 Blocks (Net Value per 10 Cards)</text>
+
+                <!-- Graph Area -->
+                <g transform="translate(60, 80)">
+                    <!-- Axis Lines -->
+                    <line x1="0" y1="0" x2="0" y2="150" class="axis-line" onclick="" /> <!-- Y Axis -->
+                    <line x1="0" y1="75" x2="800" y2="75" class="axis-line" stroke-dasharray="2,2" /> <!-- Zero Line -->
+
+                    <!-- Y Labels -->
+                    <text x="-10" y="10" text-anchor="end" class="text-muted"
+                        style="font-size: 10px; fill:#2e7d32">+$500</text>
+                    <text x="-10" y="75" text-anchor="end" class="text-muted" style="font-size: 10px;">$0</text>
+                    <text x="-10" y="140" text-anchor="end" class="text-muted"
+                        style="font-size: 10px; fill:#c62828">-$1000</text>
+
+                    <!-- Block Labels X Axis -->
+                    <text x="0" y="170" text-anchor="middle" class="text-muted" style="font-size: 10px;">Start</text>
+                    <text x="133" y="170" text-anchor="middle" class="text-muted" style="font-size: 10px;">Block
+                        1</text>
+                    <text x="266" y="170" text-anchor="middle" class="text-muted" style="font-size: 10px;">Block
+                        2</text>
+                    <text x="400" y="170" text-anchor="middle" class="text-muted" style="font-size: 10px;">Block
+                        3</text>
+                    <text x="533" y="170" text-anchor="middle" class="text-muted" style="font-size: 10px;">Block
+                        4</text>
+                    <text x="666" y="170" text-anchor="middle" class="text-muted" style="font-size: 10px;">Block
+                        5</text>
+                    <text x="800" y="170" text-anchor="middle" class="text-muted" style="font-size: 10px;">Block
+                        6</text>
+
+
+                    <!-- Good Decks (C/D) Line: Start +250 -> End +375 -->
+                    <!-- Y Scale: 75 = 0. +500 = 0 (top). -1000 = 150 (bottom).
+                  Range +500 to -1000 = 1500 units. 150px height. 1px = 10 units.
+                  $0 = 75px. 
+                  +$250 = 75 - (250/10) = 50px.
+                  +$375 = 75 - (375/10) = 37.5px.
+             -->
+                    <polyline points="0,50 133,50 266,47.5 400,45 533,42.5 666,40 800,37.5" fill="none"
+                        class="accent-good" stroke-width="3" />
+                    <text x="810" y="40" class="text-good" style="font-size: 12px; font-weight:bold">Good (+)</text>
+
+                    <!-- Bad Decks (A/B) Line: Start -250 -> End -1000 -->
+                    <!--
+                  -$250 = 75 + (250/10) = 100px.
+                  -$1000 = 75 + (1000/10) = 175px (oops, graph only goes to 150).
+                  Let's scale Y down.
+                  Range +500 to -1250 (1750 total). Height 160px.
+                  Zero at y=50.
+                  Scale: 1px ~ 11 units. 
+                  Let's just use arbitrary relative coords that look right for schematic.
+                  Zero = 60.
+                  Good Start (+250) = 40. End (+375) = 30.
+                  Bad Start (-250) = 80. End (-1000) = 140.
+             -->
+                    <line x1="0" y1="60" x2="800" y2="60" class="axis-line" stroke-dasharray="2,2" />
+                    <!-- Zero Line Corrected -->
+
+                    <!-- GOOD LINE -->
+                    <polyline points="0,40 133,40 266,38 400,36 533,34 666,32 800,30" fill="none" class="accent-good"
+                        stroke-width="3" />
+
+                    <!-- BAD LINE -->
+                    <polyline points="0,80 133,80 266,92 400,104 533,116 666,128 800,140" fill="none" class="accent-bad"
+                        stroke-width="3" />
+                    <text x="810" y="140" class="text-bad" style="font-size: 12px; font-weight:bold">Bad (---)</text>
+
+                    <text x="400" y="10" text-anchor="middle" class="text-muted" style="font-size:11px">Net Outcome
+                        increases linearly across blocks</text>
+
+                </g>
+            </g>
+
+        </svg>
+
+    </main>
+</body>
+
+</html>
