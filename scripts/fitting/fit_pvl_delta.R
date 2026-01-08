@@ -70,9 +70,10 @@ for (s in 1:nsubs) {
   x_sub <- subj_df$choice
   length(x_sub) <- ntrials_max
 
-  # Pad outcomes (X) - SCALING APPLIED to match Recovery
-  X_raw <- subj_df$gain + subj_df$loss
-  X_sub <- X_raw / 100
+  # Pad outcomes (X) - NO scaling for PVL-Delta
+  # Unlike ORL/EEF which use direct value learning, PVL uses X^A where
+  # scaling changes the interpretation of A. Class implementation does not scale.
+  X_sub <- subj_df$gain + subj_df$loss
   length(X_sub) <- ntrials_max
 
   # Assign to arrays
