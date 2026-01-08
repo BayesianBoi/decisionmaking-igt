@@ -64,8 +64,8 @@ orl_files <- list(
 
 # Check if files exist
 if (all(file.exists(unlist(orl_files)))) {
-    orl_params <- c("mu_a_rew", "mu_a_pun", "mu_K", "mu_theta", "mu_omega_f", "mu_omega_p")
-    orl_labels <- c("Reward Learning (A+)", "Punishment Learning (A-)", "Decay (K)", "Consistency (theta)", "Frequency Weight (omega_f)", "Perseverance (omega_p)")
+    orl_params <- c("mu_a_rew", "mu_a_pun", "mu_K", "mu_omega_f", "mu_omega_p")
+    orl_labels <- c("Reward Learning (A+)", "Punishment Learning (A-)", "Decay (K)", "Frequency Weight (omega_f)", "Perseverance (omega_p)")
 
     all_posteriors <- data.frame()
 

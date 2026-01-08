@@ -21,8 +21,8 @@ invisible(lapply(required_packages, library, character.only = TRUE))
 # ==============================================================================
 
 hier_ORL_sim <- function(payoff_struct, nsubs, ntrials,
-                         mu_a_rew, mu_a_pun, mu_K, mu_theta, mu_omega_f, mu_omega_p,
-                         sigma_a_rew, sigma_a_pun, sigma_K, sigma_theta,
+                         mu_a_rew, mu_a_pun, mu_K, mu_omega_f, mu_omega_p,
+                         sigma_a_rew, sigma_a_pun, sigma_K,
                          sigma_omega_f, sigma_omega_p) {
     # payoff_struct should be a list with $gain and $loss matrices
     # Each matrix is (ntrials x 4 decks)
@@ -38,7 +38,7 @@ hier_ORL_sim <- function(payoff_struct, nsubs, ntrials,
         a_rew <- rtruncnorm(1, a = 0, b = 1, mean = mu_a_rew, sd = sigma_a_rew)
         a_pun <- rtruncnorm(1, a = 0, b = 1, mean = mu_a_pun, sd = sigma_a_pun)
         K <- rtruncnorm(1, a = 0, b = Inf, mean = mu_K, sd = sigma_K)
-        theta <- rtruncnorm(1, a = 0, b = Inf, mean = mu_theta, sd = sigma_theta)
+        theta <- 1 # Fixed to 1
 
         # Omega weights are UNBOUNDED (can be negative)
         omega_f <- rnorm(1, mean = mu_omega_f, sd = sigma_omega_f)
@@ -49,7 +49,7 @@ hier_ORL_sim <- function(payoff_struct, nsubs, ntrials,
         # -------------------------------------------------------------------------
         ev <- c(0, 0, 0, 0) # Expected values per deck
         ef <- c(0, 0, 0, 0) # Expected frequencies per deck
-        pers <- c(0, 0, 0, 0) # Perseverance initialized to 0
+        pers <- c(1, 1, 1, 1) # Perseverance initialized to 1 (matching JAGS model)
         pChoose <- c(0.25, 0.25, 0.25, 0.25) # Choice probabilities
         deckCount <- c(0, 0, 0, 0) # How many times each deck has been chosen
 

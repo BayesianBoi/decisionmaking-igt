@@ -81,8 +81,7 @@ for (i in 1:n_iter) {
     mu_K <- runif(1, 0.5, 2.0)
     sigma_K <- runif(1, 0.1, 0.3)
 
-    mu_theta <- runif(1, 0.5, 2.0)
-    sigma_theta <- runif(1, 0.1, 0.3)
+    # mu_theta removed (fixed to 1)
 
     mu_omega_f <- runif(1, -1, 1)
     mu_omega_p <- runif(1, -1, 1)
@@ -97,10 +96,10 @@ for (i in 1:n_iter) {
                 nsubs = nsubs,
                 ntrials = ntrials_all,
                 mu_a_rew = mu_a_rew, mu_a_pun = mu_a_pun,
-                mu_K = mu_K, mu_theta = mu_theta,
+                mu_K = mu_K,
                 mu_omega_f = mu_omega_f, mu_omega_p = mu_omega_p,
                 sigma_a_rew = sigma_a_rew, sigma_a_pun = sigma_a_pun,
-                sigma_K = sigma_K, sigma_theta = sigma_theta,
+                sigma_K = sigma_K,
                 sigma_omega_f = sigma_omega_f, sigma_omega_p = sigma_omega_p
             )
         },
@@ -121,8 +120,8 @@ for (i in 1:n_iter) {
     )
 
     params <- c(
-        "mu_a_rew", "mu_a_pun", "mu_K", "mu_theta", "mu_omega_f", "mu_omega_p",
-        "lambda_a_rew", "lambda_a_pun", "lambda_K", "lambda_theta",
+        "mu_a_rew", "mu_a_pun", "mu_K", "mu_omega_f", "mu_omega_p",
+        "lambda_a_rew", "lambda_a_pun", "lambda_K",
         "lambda_omega_f", "lambda_omega_p"
     )
 
@@ -163,24 +162,23 @@ for (i in 1:n_iter) {
         res <- list(
             # True Means
             true_mu_a_rew = mu_a_rew, true_mu_a_pun = mu_a_pun,
-            true_mu_K = mu_K, true_mu_theta = mu_theta,
+            true_mu_K = mu_K,
             true_mu_omega_f = mu_omega_f, true_mu_omega_p = mu_omega_p,
 
             # True Sigmas
             true_sigma_a_rew = sigma_a_rew, true_sigma_a_pun = sigma_a_pun,
-            true_sigma_K = sigma_K, true_sigma_theta = sigma_theta,
+            true_sigma_K = sigma_K,
             true_sigma_omega_f = sigma_omega_f, true_sigma_omega_p = sigma_omega_p,
 
             # Inferred Means
             infer_mu_a_rew = MPD(Y$mu_a_rew), infer_mu_a_pun = MPD(Y$mu_a_pun),
-            infer_mu_K = MPD(Y$mu_K), infer_mu_theta = MPD(Y$mu_theta),
+            infer_mu_K = MPD(Y$mu_K),
             infer_mu_omega_f = MPD(Y$mu_omega_f), infer_mu_omega_p = MPD(Y$mu_omega_p),
 
             # Inferred Sigmas
             infer_sigma_a_rew = MPD(1 / sqrt(Y$lambda_a_rew)),
             infer_sigma_a_pun = MPD(1 / sqrt(Y$lambda_a_pun)),
             infer_sigma_K = MPD(1 / sqrt(Y$lambda_K)),
-            infer_sigma_theta = MPD(1 / sqrt(Y$lambda_theta)),
             infer_sigma_omega_f = MPD(1 / sqrt(Y$lambda_omega_f)),
             infer_sigma_omega_p = MPD(1 / sqrt(Y$lambda_omega_p)),
 
@@ -188,7 +186,6 @@ for (i in 1:n_iter) {
             lower_mu_a_rew = get_q("mu_a_rew", "2.5%"),
             lower_mu_a_pun = get_q("mu_a_pun", "2.5%"),
             lower_mu_K = get_q("mu_K", "2.5%"),
-            lower_mu_theta = get_q("mu_theta", "2.5%"),
             lower_mu_omega_f = get_q("mu_omega_f", "2.5%"),
             lower_mu_omega_p = get_q("mu_omega_p", "2.5%"),
 
@@ -196,7 +193,6 @@ for (i in 1:n_iter) {
             upper_mu_a_rew = get_q("mu_a_rew", "97.5%"),
             upper_mu_a_pun = get_q("mu_a_pun", "97.5%"),
             upper_mu_K = get_q("mu_K", "97.5%"),
-            upper_mu_theta = get_q("mu_theta", "97.5%"),
             upper_mu_omega_f = get_q("mu_omega_f", "97.5%"),
             upper_mu_omega_p = get_q("mu_omega_p", "97.5%")
         )

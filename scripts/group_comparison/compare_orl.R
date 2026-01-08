@@ -98,14 +98,13 @@ jags_data <- list(
     "ntrials_g2" = g2_data$ntrials, "nsubs_g2" = g2_data$nsubs
 )
 
-# Parameters to monitor
+# Parameters to compare
 # mu = grand mean across both groups
 # alpha = difference (Group2 - Group1)
-params <- c(
+params_to_compare <- c(
     "mu_a_rew", "alpha_a_rew",
     "mu_a_pun", "alpha_a_pun",
     "mu_K", "alpha_K",
-    "mu_theta", "alpha_theta",
     "mu_omega_f", "alpha_omega_f",
     "mu_omega_p", "alpha_omega_p"
 )

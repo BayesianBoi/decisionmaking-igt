@@ -75,8 +75,7 @@ run_iteration <- function(i) {
     mu_K <- runif(1, 0.5, 2.0)
     sigma_K <- runif(1, 0.1, 0.3)
 
-    mu_theta <- runif(1, 0.5, 2.0)
-    sigma_theta <- runif(1, 0.1, 0.3)
+    # mu_theta removed
 
     mu_omega_f <- runif(1, -1, 1)
     mu_omega_p <- runif(1, -1, 1)
@@ -91,10 +90,10 @@ run_iteration <- function(i) {
         nsubs = nsubs,
         ntrials = ntrials_all,
         mu_a_rew = mu_a_rew, mu_a_pun = mu_a_pun,
-        mu_K = mu_K, mu_theta = mu_theta,
+        mu_K = mu_K,
         mu_omega_f = mu_omega_f, mu_omega_p = mu_omega_p,
         sigma_a_rew = sigma_a_rew, sigma_a_pun = sigma_a_pun,
-        sigma_K = sigma_K, sigma_theta = sigma_theta,
+        sigma_K = sigma_K,
         sigma_omega_f = sigma_omega_f, sigma_omega_p = sigma_omega_p
     )
 
@@ -104,8 +103,8 @@ run_iteration <- function(i) {
     jags_data <- list("x" = sim_data$x, "X" = sim_data$X, "ntrials" = ntrials_all, "nsubs" = nsubs)
 
     params <- c(
-        "mu_a_rew", "mu_a_pun", "mu_K", "mu_theta", "mu_omega_f", "mu_omega_p",
-        "lambda_a_rew", "lambda_a_pun", "lambda_K", "lambda_theta",
+        "mu_a_rew", "mu_a_pun", "mu_K", "mu_omega_f", "mu_omega_p",
+        "lambda_a_rew", "lambda_a_pun", "lambda_K",
         "lambda_omega_f", "lambda_omega_p"
     )
 
@@ -130,12 +129,12 @@ run_iteration <- function(i) {
     list(
         # True
         true_mu_a_rew = mu_a_rew, true_mu_a_pun = mu_a_pun,
-        true_mu_K = mu_K, true_mu_theta = mu_theta,
+        true_mu_K = mu_K,
         true_mu_omega_f = mu_omega_f, true_mu_omega_p = mu_omega_p,
 
         # Inferred ( Means)
         infer_mu_a_rew = MPD(Y$mu_a_rew), infer_mu_a_pun = MPD(Y$mu_a_pun),
-        infer_mu_K = MPD(Y$mu_K), infer_mu_theta = MPD(Y$mu_theta),
+        infer_mu_K = MPD(Y$mu_K),
         infer_mu_omega_f = MPD(Y$mu_omega_f), infer_mu_omega_p = MPD(Y$mu_omega_p)
     )
 }
@@ -153,9 +152,6 @@ infer_mu_a_pun <- sapply(results_list, function(x) x$infer_mu_a_pun)
 
 true_mu_K <- sapply(results_list, function(x) x$true_mu_K)
 infer_mu_K <- sapply(results_list, function(x) x$infer_mu_K)
-
-true_mu_theta <- sapply(results_list, function(x) x$true_mu_theta)
-infer_mu_theta <- sapply(results_list, function(x) x$infer_mu_theta)
 
 true_mu_omega_f <- sapply(results_list, function(x) x$true_mu_omega_f)
 infer_mu_omega_f <- sapply(results_list, function(x) x$infer_mu_omega_f)
@@ -181,7 +177,6 @@ df_summary <- data.frame(
     true_mu_a_rew = true_mu_a_rew, infer_mu_a_rew = infer_mu_a_rew,
     true_mu_a_pun = true_mu_a_pun, infer_mu_a_pun = infer_mu_a_pun,
     true_mu_K = true_mu_K, infer_mu_K = infer_mu_K,
-    true_mu_theta = true_mu_theta, infer_mu_theta = infer_mu_theta,
     true_mu_omega_f = true_mu_omega_f, infer_mu_omega_f = infer_mu_omega_f,
     true_mu_omega_p = true_mu_omega_p, infer_mu_omega_p = infer_mu_omega_p
 )
@@ -195,11 +190,10 @@ cat("Results saved to:", output_dir_data, "\n")
 pl1 <- plot_recovery(true_mu_a_rew, infer_mu_a_rew, "mu_a_rew (Reward Learning)")
 pl2 <- plot_recovery(true_mu_a_pun, infer_mu_a_pun, "mu_a_pun (Punishment Learning)")
 pl3 <- plot_recovery(true_mu_K, infer_mu_K, "mu_K (Perseverance Decay)")
-pl4 <- plot_recovery(true_mu_theta, infer_mu_theta, "mu_theta (Inv. Temperature)")
 pl5 <- plot_recovery(true_mu_omega_f, infer_mu_omega_f, "mu_omega_f (Frequency Weight)")
 pl6 <- plot_recovery(true_mu_omega_p, infer_mu_omega_p, "mu_omega_p (Perseverance Weight)")
 
-final_plot <- ggarrange(pl1, pl2, pl3, pl4, pl5, pl6, nrow = 2, ncol = 3)
+final_plot <- ggarrange(pl1, pl2, pl3, pl5, pl6, nrow = 2, ncol = 3)
 
 output_dir <- "analysis/plots/recovery"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
@@ -214,6 +208,5 @@ cat("\n=== Recovery Correlations ===\n")
 cat("mu_a_rew:   r =", round(cor(true_mu_a_rew, infer_mu_a_rew), 3), "\n")
 cat("mu_a_pun:   r =", round(cor(true_mu_a_pun, infer_mu_a_pun), 3), "\n")
 cat("mu_K:       r =", round(cor(true_mu_K, infer_mu_K), 3), "\n")
-cat("mu_theta:   r =", round(cor(true_mu_theta, infer_mu_theta), 3), "\n")
 cat("mu_omega_f: r =", round(cor(true_mu_omega_f, infer_mu_omega_f), 3), "\n")
 cat("mu_omega_p: r =", round(cor(true_mu_omega_p, infer_mu_omega_p), 3), "\n")
