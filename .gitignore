@@ -7,7 +7,16 @@ temp/
 temp_logs/
 R/
 
-# Output files (regenerated on run)
+# Log files
+logfiles/
+logs/
+
+# PPC outputs (regenerated)
+outputs/ppc/
+
+# Plots (regenerated)
+plots/
+
 # Output files (regenerated on run)
 # outputs/ and plots/ are tracked, but specific extensions ignored
 *.rds
