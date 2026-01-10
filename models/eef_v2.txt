@@ -1,62 +1,72 @@
 model {
 
-  # Individual-level model for posterior predictive checks
-  # Parameters estimated directly for a single subject
+  # Group-level priors (weakly informative)
+  mu_theta  ~ dnorm(0,1)T(1.0E-6, 1)   # avoid theta=0
+  mu_lambda ~ dnorm(0,1)T(0,1)
+  mu_phi    ~ dnorm(0,1)T(-5,5)
+  mu_cons   ~ dnorm(0,1)T(0,5)
 
-  # Priors for individual parameters
-  theta ~ dunif(1.0E-6, 1)   # avoid theta = 0 (prevents pow(0,0) issues)
-  lam   ~ dunif(0, 1)
-  phi   ~ dunif(-5, 5)
-  cons  ~ dunif(0, 5)
+  # Precision priors for between-subject variability
+  lambda_theta  ~ dgamma(1, 0.5)
+  lambda_lambda ~ dgamma(1, 0.5)
+  lambda_phi    ~ dgamma(1, 0.5)
+  lambda_cons   ~ dgamma(1, 0.5)
 
-  # Consistency transformation (Yang et al. 2025): C = 3*beta - 1
-  C <- 3 * cons - 1
+  for (s in 1:nsubs) {
 
-  # Initial values at t=1
-  for (d in 1:4) {
-    Exploit[1,d] <- 0
-    Explore[1,d] <- 0
+    # Subject-level parameters
+    theta[s] ~ dnorm(mu_theta,  lambda_theta)T(1.0E-6, 1)
+    lam[s]   ~ dnorm(mu_lambda, lambda_lambda)T(0,1)
+    phi[s]   ~ dnorm(mu_phi,    lambda_phi)T(-5,5)
+    cons[s]  ~ dnorm(mu_cons,   lambda_cons)T(0,5)
 
-    # Define p at t=1 so p has dimension [1:ntrials, 1:4] in the output
-    p[1,d] <- 0.25
-    exp_p[1,d] <- 1
-  }
+    # Yang et al. (2025): C = 3*beta - 1
+    C[s] <- 3 * cons[s] - 1
 
-  for (t in 2:ntrials) {
-
-    # Value function: V(t) = Gain(t)^theta - |Loss(t)|^theta
-    V[t] <- pow(Gain[t-1], theta) - pow(abs(Loss[t-1]), theta)
-
+    # Initial values at t=1
     for (d in 1:4) {
-
-      # Exploitation updates
-      Exploit_decay[t,d]  <- (1 - lam) * Exploit[t-1,d]
-      Exploit_chosen[t,d] <- (1 - lam) * Exploit[t-1,d] + V[t]
-      Exploit[t,d] <- ifelse(d == x[t-1], Exploit_chosen[t,d], Exploit_decay[t,d])
-
-      # Exploration updates
-      Explore_unchosen[t,d] <- lam * Explore[t-1,d] + (1 - lam) * phi
-      Explore[t,d] <- ifelse(d == x[t-1], 0, Explore_unchosen[t,d])
-
-      # Combined value and linear predictor for softmax
-      TotalVal[t,d] <- Exploit[t,d] + Explore[t,d]
-      a[t,d] <- C * TotalVal[t,d]
+      Exploit[s,1,d] <- 0
+      Explore[s,1,d] <- 0
     }
 
-    # Stable softmax: subtract max(a) before exp()
-    amax[t] <- max(a[t,1:4])
+    for (t in 2:ntrials[s]) {
 
-    for (d in 1:4) {
-      exp_p[t,d] <- exp(a[t,d] - amax[t])
+      # Value function: V = Gain^theta - |Loss|^theta
+      V[s,t] <- pow(Gain[s,t-1], theta[s]) - pow(abs(Loss[s,t-1]), theta[s])
+
+      for (d in 1:4) {
+
+        # Exploitation updates
+        Exploit_decay[s,t,d]  <- (1 - lam[s]) * Exploit[s,t-1,d]
+        Exploit_chosen[s,t,d] <- (1 - lam[s]) * Exploit[s,t-1,d] + V[s,t]
+        Exploit[s,t,d] <- ifelse(d == x[s,t-1], Exploit_chosen[s,t,d], Exploit_decay[s,t,d])
+
+        # Exploration updates
+        Explore_unchosen[s,t,d] <- lam[s] * Explore[s,t-1,d] + (1 - lam[s]) * phi[s]
+        Explore[s,t,d] <- ifelse(d == x[s,t-1], 0, Explore_unchosen[s,t,d])
+
+        # Combined value
+        TotalVal[s,t,d] <- Exploit[s,t,d] + Explore[s,t,d]
+
+        # Linear predictor for softmax
+        a[s,t,d] <- C[s] * TotalVal[s,t,d]
+      }
+
+      # Stable softmax: subtract max(a) before exp()
+      amax[s,t] <- max(a[s,t,1:4])
+
+      for (d in 1:4) {
+        exp_p[s,t,d] <- exp(a[s,t,d] - amax[s,t])
+      }
+
+      denom[s,t] <- sum(exp_p[s,t,1:4])
+
+      for (d in 1:4) {
+        p[s,t,d] <- exp_p[s,t,d] / denom[s,t]
+      }
+
+      # Choice likelihood (explicit slice)
+      x[s,t] ~ dcat(p[s,t,1:4])
     }
-
-    denom[t] <- sum(exp_p[t,1:4])
-
-    for (d in 1:4) {
-      p[t,d] <- exp_p[t,d] / denom[t]
-    }
-
-    # Choice likelihood (explicit slice)
-    x[t] ~ dcat(p[t,1:4])
   }
 }
