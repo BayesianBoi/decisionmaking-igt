@@ -1,11 +1,11 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# INDIVIDUAL PPC - EEF v2 Model
+# INDIVIDUAL PPC - EEF Model
 # =============================================================================
-# Fits EEF v2 model individually for each subject and computes PPC
+# Fits EEF model individually for each subject and computes PPC
 # This version uses separate Gain/Loss inputs per Yang et al. 2025
-# Usage: Rscript scripts/ppc/run_ppc_eef_v2.R <group>
-# Example: Rscript scripts/ppc/run_ppc_eef_v2.R HC
+# Usage: Rscript scripts/ppc/run_ppc_eef.R <group>
+# Example: Rscript scripts/ppc/run_ppc_eef.R HC
 # =============================================================================
 
 # Setup
@@ -18,7 +18,7 @@ set.seed(42)
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 1) {
-    stop("Usage: Rscript run_ppc_eef_v2.R <group>\nGroup: HC, Amph, Hero")
+    stop("Usage: Rscript run_ppc_eef.R <group>\nGroup: HC, Amph, Hero")
 }
 
 target_group <- args[1]
@@ -35,7 +35,7 @@ if (!target_group %in% names(groups_map)) {
 study_label <- groups_map[[target_group]]
 
 cat("\n================================================\n")
-cat("INDIVIDUAL PPC: EEF v2 -", target_group, "\n")
+cat("INDIVIDUAL PPC: EEF -", target_group, "\n")
 cat("================================================\n")
 
 # Load Data
@@ -58,7 +58,7 @@ MPD <- function(x) {
     dens$x[which.max(dens$y)]
 }
 
-model_file <- "models/eef_v2_individual.txt"
+model_file <- "models/eef_individual.txt"
 if (!file.exists(model_file)) {
     stop("Model file not found: ", model_file)
 }
@@ -138,7 +138,7 @@ cat("\nTotal time:", difftime(end_time, start_time, units = "mins"), "minutes\n"
 mean_acc <- mean(pred_success, na.rm = TRUE)
 sd_acc <- sd(pred_success, na.rm = TRUE)
 
-cat("\n=== EEF v2 INDIVIDUAL PPC RESULTS ===\n")
+cat("\n=== EEF INDIVIDUAL PPC RESULTS ===\n")
 cat(sprintf("Group: %s\n", target_group))
 cat(sprintf("Mean accuracy: %.3f (SD: %.3f)\n", mean_acc, sd_acc))
 cat(sprintf("Range: %.3f - %.3f\n", min(pred_success, na.rm = TRUE), max(pred_success, na.rm = TRUE)))
@@ -154,7 +154,7 @@ pred_df <- data.frame(
     sd_acc = sd_acc
 )
 
-results_path <- file.path(output_dir, paste0("ppc_individual_eef_v2_", target_group, ".rds"))
+results_path <- file.path(output_dir, paste0("ppc_individual_eef_", target_group, ".rds"))
 saveRDS(list(accuracy = pred_success, mean = mean_acc, sd = sd_acc, df = pred_df), results_path)
 cat("Results saved to:", results_path, "\n")
 
@@ -170,7 +170,7 @@ p <- ggplot(pred_df, aes(x = subject, y = accuracy)) +
     geom_point(color = colors[[target_group]], size = 2.5, alpha = 0.6) +
     ylim(0, 0.8) +
     labs(
-        title = paste("Individual PPC: EEF v2 -", target_group),
+        title = paste("Individual PPC: EEF -", target_group),
         subtitle = sprintf("Mean Accuracy: %.3f (SD: %.3f)", mean_acc, sd_acc),
         x = "Subject",
         y = "Proportion Correctly Predicted"
@@ -181,6 +181,6 @@ p <- ggplot(pred_df, aes(x = subject, y = accuracy)) +
         plot.subtitle = element_text(hjust = 0.5)
     )
 
-plot_path <- file.path(output_dir, paste0("ppc_individual_eef_v2_", target_group, ".png"))
+plot_path <- file.path(output_dir, paste0("ppc_individual_eef_", target_group, ".png"))
 ggsave(plot_path, plot = p, width = 12, height = 6, dpi = 300)
 cat("Plot saved to:", plot_path, "\n")

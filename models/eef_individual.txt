@@ -1,62 +1,62 @@
-# Non-hierarchical EEF model for single subject
-# Priors matched to hierarchical model (with truncation)
-
 model {
-  
-  # Subject-level priors (matching hierarchical with truncation)
-  theta ~ dnorm(0, 1)T(0, 1)    # Outcome sensitivity
-  lambda ~ dnorm(0, 1)T(0, 1)   # Forgetting/learning rate
-  phi ~ dnorm(0, 1)T(-5, 5)     # Exploration bonus
-  cons ~ dnorm(0, 1)T(0, 5)     # Consistency (beta)
-  
-  # Initialization - all decks start equal
+
+  # Individual-level model for posterior predictive checks
+  # Parameters estimated directly for a single subject
+
+  # Priors for individual parameters
+  theta ~ dunif(1.0E-6, 1)   # avoid theta = 0 (prevents pow(0,0) issues)
+  lam   ~ dunif(0, 1)
+  phi   ~ dunif(-5, 5)
+  cons  ~ dunif(0, 5)
+
+  # C = 3^beta - 1 gives inverse temperature scaling
+  C <- pow(3, cons) - 1
+
+  # Initial values at t=1
   for (d in 1:4) {
-    Exploit[1, d] <- 0
-    Explore[1, d] <- 0
+    Exploit[1,d] <- 0
+    Explore[1,d] <- 0
+
+    # Define p at t=1 so p has dimension [1:ntrials, 1:4] in the output
+    p[1,d] <- 0.25
+    exp_p[1,d] <- 1
   }
-  
-  # Initial choice probabilities
-  p[1,1] <- .25
-  p[1,2] <- .25
-  p[1,3] <- .25
-  p[1,4] <- .25
-  
-  # Consistency transformation: C = 3*beta - 1
-  C[s] <- 3 * cons[s] - 1
-  
+
   for (t in 2:ntrials) {
-    
-    # Calculate utility of previous outcome
-    u[t] <- ifelse(X[t-1] >= 0, 
-                   abs(X[t-1])^theta, 
-                   -1 * abs(X[t-1])^theta)
-    
+
+    # Value function: V(t) = Gain(t)^theta - |Loss(t)|^theta
+    V[t] <- pow(Gain[t-1], theta) - pow(abs(Loss[t-1]), theta)
+
     for (d in 1:4) {
-      
-      # Update Exploitation values
-      Exploit_update[t, d] <- (1 - lambda) * Exploit[t-1, d] + lambda * u[t]
-      Exploit_no_update[t, d] <- (1 - lambda) * Exploit[t-1, d]
-      
-      # Update Exploration values
-      Explore_update[t, d] <- (1 - lambda) * Explore[t-1, d] + lambda * phi
-      Explore_no_update[t, d] <- 0
-      
-      # Apply updates based on choice
-      Exploit[t, d] <- ifelse(d == x[t-1], Exploit_update[t, d], Exploit_no_update[t, d])
-      Explore[t, d] <- ifelse(d == x[t-1], Explore_no_update[t, d], Explore_update[t, d])
-      
-      # Total value
-      V[t, d] <- Exploit[t, d] + Explore[t, d]
-      
-      # Softmax step 1
-      exp_p[t, d] <- exp(C * V[t, d])
+
+      # Exploitation updates
+      Exploit_decay[t,d]  <- (1 - lam) * Exploit[t-1,d]
+      Exploit_chosen[t,d] <- (1 - lam) * Exploit[t-1,d] + V[t]
+      Exploit[t,d] <- ifelse(d == x[t-1], Exploit_chosen[t,d], Exploit_decay[t,d])
+
+      # Exploration updates
+      Explore_unchosen[t,d] <- lam * Explore[t-1,d] + (1 - lam) * phi
+      Explore[t,d] <- ifelse(d == x[t-1], 0, Explore_unchosen[t,d])
+
+      # Combined value and linear predictor for softmax
+      TotalVal[t,d] <- Exploit[t,d] + Explore[t,d]
+      a[t,d] <- C * TotalVal[t,d]
     }
-    
+
+    # Stable softmax: subtract max(a) before exp()
+    amax[t] <- max(a[t,1:4])
+
     for (d in 1:4) {
-      # Softmax step 2
-      p[t, d] <- exp_p[t, d] / sum(exp_p[t, ])
+      exp_p[t,d] <- exp(a[t,d] - amax[t])
     }
-    
-    x[t] ~ dcat(p[t, ])
+
+    denom[t] <- sum(exp_p[t,1:4])
+
+    for (d in 1:4) {
+      p[t,d] <- exp_p[t,d] / denom[t]
+    }
+
+    # Choice likelihood (explicit slice)
+    x[t] ~ dcat(p[t,1:4])
   }
 }

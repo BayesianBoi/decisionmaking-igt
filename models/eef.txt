@@ -1,78 +1,72 @@
 model {
-  
-  # Group-level priors
-  mu_theta ~ dnorm(0,1)T(0,1)
+
+  # Group-level priors (weakly informative)
+  mu_theta  ~ dnorm(0,1)T(1.0E-6, 1)   # avoid theta=0
   mu_lambda ~ dnorm(0,1)T(0,1)
-  mu_phi ~ dnorm(0,1)T(-5,5)
-  mu_cons ~ dnorm(0,1)T(0,5)
-  
-  # Precision priors (matching PVL-Delta for consistency and stability)
-  lambda_theta ~ dgamma(1, 0.5)
+  mu_phi    ~ dnorm(0,1)T(-5,5)
+  mu_cons   ~ dnorm(0,1)T(0,5)
+
+  # Precision priors for between-subject variability
+  lambda_theta  ~ dgamma(1, 0.5)
   lambda_lambda ~ dgamma(1, 0.5)
-  lambda_phi ~ dgamma(1, 0.5)
-  lambda_cons ~ dgamma(1, 0.5)
-  
+  lambda_phi    ~ dgamma(1, 0.5)
+  lambda_cons   ~ dgamma(1, 0.5)
+
   for (s in 1:nsubs) {
-    
+
     # Subject-level parameters
-    theta[s] ~ dnorm(mu_theta, lambda_theta)T(0,1)
-    lambda[s] ~ dnorm(mu_lambda, lambda_lambda)T(0,1)
-    phi[s] ~ dnorm(mu_phi, lambda_phi)T(-5,5)
-    cons[s] ~ dnorm(mu_cons, lambda_cons)T(0,5)
-    
-    # Initialization
-    # We initialize exploit/explore values to 0
-    for (d in 1:4) {
-        Exploit[s,1,d] <- 0
-        Explore[s,1,d] <- 0
-    }
-    
-    # Consistency Transformation C = 3^beta - 1
-    # cons[s] here corresponds to 'beta' in the paper (0-5)
+    theta[s] ~ dnorm(mu_theta,  lambda_theta)T(1.0E-6, 1)
+    lam[s]   ~ dnorm(mu_lambda, lambda_lambda)T(0,1)
+    phi[s]   ~ dnorm(mu_phi,    lambda_phi)T(-5,5)
+    cons[s]  ~ dnorm(mu_cons,   lambda_cons)T(0,5)
+
+    # C = 3^beta - 1 gives inverse temperature scaling
     C[s] <- pow(3, cons[s]) - 1
-    
+
+    # Initial values at t=1
+    for (d in 1:4) {
+      Exploit[s,1,d] <- 0
+      Explore[s,1,d] <- 0
+    }
+
     for (t in 2:ntrials[s]) {
-      
-      # Calculate utility of previous outcome
-      # Using PVL power utility form: u(t) = sign(x(t)) * |x(t)|^theta
-      # Note: X[s,t-1] is the net outcome
-      u[s,t] <- ifelse(X[s,t-1] >= 0, 
-                       abs(X[s,t-1])^theta[s], 
-                       -1 * abs(X[s,t-1])^theta[s])
-      
+
+      # Value function: V = Gain^theta - |Loss|^theta
+      V[s,t] <- pow(Gain[s,t-1], theta[s]) - pow(abs(Loss[s,t-1]), theta[s])
+
       for (d in 1:4) {
-        
-      # Update Exploration and Exploitation terms
-        # If deck d was chosen at t-1:
-        #   Exploit_cho = (1-lambda) * Exploit(t-1) + lambda * u(t)
-        #   Explore_cho = 0   <-- RESET TO ZERO (Yang et al. 2025)
-        # If deck d was NOT chosen:
-        #   Exploit_unc = (1-lambda) * Exploit(t-1)
-        #   Explore_unc = (1-lambda) * Explore(t-1) + lambda * phi
-        
-        # Calculate possible update values
-        Exploit_update[s,t,d] <- (1-lambda[s]) * Exploit[s,t-1,d] + lambda[s] * u[s,t]
-        Exploit_no_update[s,t,d] <- (1-lambda[s]) * Exploit[s,t-1,d]
-        
-        Explore_update[s,t,d] <- (1-lambda[s]) * Explore[s,t-1,d] + lambda[s] * phi[s]
-        Explore_no_update[s,t,d] <- 0 # Reset to 0 if chosen
-        
-        # Apply updates based on choice
-        Exploit[s,t,d] <- ifelse(d == x[s,t-1], Exploit_update[s,t,d], Exploit_no_update[s,t,d])
-        Explore[s,t,d] <- ifelse(d == x[s,t-1], Explore_no_update[s,t,d], Explore_update[s,t,d])
-        
-        # Total value
-        V[s,t,d] <- Exploit[s,t,d] + Explore[s,t,d]
-        
-        # Softmax
-        exp_p[s,t,d] <- exp(C[s] * V[s,t,d])
+
+        # Exploitation updates
+        Exploit_decay[s,t,d]  <- (1 - lam[s]) * Exploit[s,t-1,d]
+        Exploit_chosen[s,t,d] <- (1 - lam[s]) * Exploit[s,t-1,d] + V[s,t]
+        Exploit[s,t,d] <- ifelse(d == x[s,t-1], Exploit_chosen[s,t,d], Exploit_decay[s,t,d])
+
+        # Exploration updates
+        Explore_unchosen[s,t,d] <- lam[s] * Explore[s,t-1,d] + (1 - lam[s]) * phi[s]
+        Explore[s,t,d] <- ifelse(d == x[s,t-1], 0, Explore_unchosen[s,t,d])
+
+        # Combined value
+        TotalVal[s,t,d] <- Exploit[s,t,d] + Explore[s,t,d]
+
+        # Linear predictor for softmax
+        a[s,t,d] <- C[s] * TotalVal[s,t,d]
       }
-      
+
+      # Stable softmax: subtract max(a) before exp()
+      amax[s,t] <- max(a[s,t,1:4])
+
       for (d in 1:4) {
-        p[s,t,d] <- exp_p[s,t,d] / sum(exp_p[s,t,])
+        exp_p[s,t,d] <- exp(a[s,t,d] - amax[s,t])
       }
-      
-      x[s,t] ~ dcat(p[s,t,])
+
+      denom[s,t] <- sum(exp_p[s,t,1:4])
+
+      for (d in 1:4) {
+        p[s,t,d] <- exp_p[s,t,d] / denom[s,t]
+      }
+
+      # Choice likelihood (explicit slice)
+      x[s,t] ~ dcat(p[s,t,1:4])
     }
   }
 }
