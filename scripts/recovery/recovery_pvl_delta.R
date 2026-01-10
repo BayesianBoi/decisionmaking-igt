@@ -45,10 +45,10 @@ source("scripts/plotting/plotting_utils.R")
 # Task Setup
 # ==============================================================================
 ntrials <- 100
-payoff_struct <- generate_modified_igt_payoff(ntrials, scale = TRUE)
+payoff_struct <- generate_modified_igt_payoff(ntrials, scale = FALSE) # NO scaling for PVL
 
-cat("Modified IGT Payoff (Scaled /100) loaded.\n")
-cat("Payoff structure contains separate gain and loss matrices.\n\n")
+cat("Modified IGT Payoff (UNSCALED) loaded for PVL-Delta.\n")
+cat("PVL-Delta uses original monetary values (no /100 scaling).\n\n")
 
 # ==============================================================================
 # Recovery Configuration

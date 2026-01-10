@@ -90,7 +90,15 @@ process_subject <- function(s) {
 
     # Prepare data for single subject
     x <- subj_df$choice
-    X <- (subj_df$gain + subj_df$loss) / 100 # Scale outcomes
+
+    # Model-specific scaling
+    # PVL-Delta uses UNSCALED outcomes (original monetary values)
+    # ORL and EEF use SCALED outcomes (divided by 100)
+    if (model_name == "pvl_delta") {
+        X <- subj_df$gain + subj_df$loss # NO scaling for PVL
+    } else {
+        X <- (subj_df$gain + subj_df$loss) / 100 # Scale for ORL/EEF
+    }
 
     jags_data <- list(
         "x" = x,
