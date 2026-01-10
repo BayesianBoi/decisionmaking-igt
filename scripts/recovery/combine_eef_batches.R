@@ -137,6 +137,22 @@ combined_plot <- ggarrange(
 ggsave(file.path(plot_dir, "recovery_eef_combined.png"), combined_plot, width = 16, height = 8)
 print(paste("Combined plot saved to:", file.path(plot_dir, "recovery_eef_combined.png")))
 
+# Mu-only plot (2x2 grid)
+mu_plot <- ggarrange(
+    p_theta, p_lambda, p_phi, p_cons,
+    ncol = 2, nrow = 2
+)
+ggsave(file.path(plot_dir, "recovery_eef_mu.png"), mu_plot, width = 10, height = 10)
+print(paste("Mu plot saved to:", file.path(plot_dir, "recovery_eef_mu.png")))
+
+# Sigma-only plot (2x2 grid)
+sigma_plot <- ggarrange(
+    p_sigma_theta, p_sigma_lambda, p_sigma_phi, p_sigma_cons,
+    ncol = 2, nrow = 2
+)
+ggsave(file.path(plot_dir, "recovery_eef_sigma.png"), sigma_plot, width = 10, height = 10)
+print(paste("Sigma plot saved to:", file.path(plot_dir, "recovery_eef_sigma.png")))
+
 # Print correlations
 
 valid_idx <- !is.na(true_sigma_theta) # Re-evaluate valid_idx for correlations

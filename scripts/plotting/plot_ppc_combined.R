@@ -8,7 +8,7 @@ cat("=== Creating Combined PPC Plot ===\n\n")
 
 output_dir <- "outputs/ppc"
 
-models <- c("eef", "orl")
+models <- c("eef", "orl", "pvl_delta")
 groups <- c("HC", "Amph", "Hero")
 colors <- c(HC = "lightgreen", Amph = "salmon", Hero = "lightblue")
 
@@ -16,7 +16,7 @@ results_list <- list()
 
 for (model in models) {
     for (group in groups) {
-        results_path <- file.path(output_dir, paste0("ppc_mpd_", model, "_", group, ".rds"))
+        results_path <- file.path(output_dir, paste0("ppc_individual_", model, "_", group, ".rds"))
 
         if (!file.exists(results_path)) {
             cat("Missing:", results_path, "\n")

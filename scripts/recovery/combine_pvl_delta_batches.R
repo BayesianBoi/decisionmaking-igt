@@ -136,6 +136,22 @@ combined_plot <- ggarrange(
 ggsave(file.path(plot_dir, "recovery_pvl_delta_combined.png"), combined_plot, width = 16, height = 8)
 print(paste("Combined plot saved to:", file.path(plot_dir, "recovery_pvl_delta_combined.png")))
 
+# Mu-only plot (2x2 grid)
+mu_plot <- ggarrange(
+    p1, p2, p3, p4,
+    ncol = 2, nrow = 2
+)
+ggsave(file.path(plot_dir, "recovery_pvl_delta_mu.png"), mu_plot, width = 10, height = 10)
+print(paste("Mu plot saved to:", file.path(plot_dir, "recovery_pvl_delta_mu.png")))
+
+# Sigma-only plot (2x2 grid)
+sigma_plot <- ggarrange(
+    s1, s2, s3, s4,
+    ncol = 2, nrow = 2
+)
+ggsave(file.path(plot_dir, "recovery_pvl_delta_sigma.png"), sigma_plot, width = 10, height = 10)
+print(paste("Sigma plot saved to:", file.path(plot_dir, "recovery_pvl_delta_sigma.png")))
+
 
 # ------------------------------------------------------------------------------
 # 6. Calculate and Print Metrics

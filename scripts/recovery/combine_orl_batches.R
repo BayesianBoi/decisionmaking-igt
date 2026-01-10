@@ -142,15 +142,34 @@ s3 <- plot_recovery(true_sigma_K, infer_sigma_K, "Sigma K")
 s4 <- plot_recovery(true_sigma_omega_f, infer_sigma_omega_f, "Sigma Omega_F")
 s5 <- plot_recovery(true_sigma_omega_p, infer_sigma_omega_p, "Sigma Omega_P")
 
-# Combined plot: 5 columns x 2 rows (means on top, sigmas on bottom)
+# Combined plot: 5x2 grid (means left, sigmas right)
 combined_plot <- ggarrange(
-    p1, p2, p3, p4, p5, # Row 1: all means
-    s1, s2, s3, s4, s5, # Row 2: all sigmas
-    nrow = 2, ncol = 5
+    p1, s1, # Row 1: A_rew
+    p2, s2, # Row 2: A_pun
+    p3, s3, # Row 3: K
+    p4, s4, # Row 4: omega_f
+    p5, s5, # Row 5: omega_p
+    nrow = 5, ncol = 2
 )
 
-ggsave(file.path(plot_dir, "recovery_orl_combined.png"), combined_plot, width = 25, height = 10)
+ggsave(file.path(plot_dir, "recovery_orl_combined.png"), combined_plot, width = 8, height = 20)
 print(paste("Combined plot saved to:", file.path(plot_dir, "recovery_orl_combined.png")))
+
+# Mu-only plot (3x2 grid)
+mu_plot <- ggarrange(
+    p1, p2, p3, p4, p5, NULL,
+    ncol = 3, nrow = 2
+)
+ggsave(file.path(plot_dir, "recovery_orl_mu.png"), mu_plot, width = 12, height = 8)
+print(paste("Mu plot saved to:", file.path(plot_dir, "recovery_orl_mu.png")))
+
+# Sigma-only plot (3x2 grid)
+sigma_plot <- ggarrange(
+    s1, s2, s3, s4, s5, NULL,
+    ncol = 3, nrow = 2
+)
+ggsave(file.path(plot_dir, "recovery_orl_sigma.png"), sigma_plot, width = 12, height = 8)
+print(paste("Sigma plot saved to:", file.path(plot_dir, "recovery_orl_sigma.png")))
 
 
 # Print major correlations (Means)
