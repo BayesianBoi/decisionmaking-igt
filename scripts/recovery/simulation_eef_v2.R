@@ -36,7 +36,7 @@ simulation_eef_v2 <- function(payoff_struct, nsubs, ntrials,
         true_cons[s] <- cons_s
 
         # Consistency transformation
-        C_s <- 3^cons_s - 1
+        C_s <- 3 * cons_s - 1
 
         # Initialize exploitation and exploration weights
         Exploit <- rep(0, 4)
@@ -86,13 +86,10 @@ simulation_eef_v2 <- function(payoff_struct, nsubs, ntrials,
 
             # Compute choice probabilities via softmax
             total_val <- Exploit + Explore
-            exp_vals <- exp(C_s * total_val)
+            a <- C_s * total_val
+            a <- a - max(a) # stable softmax shift
+            exp_vals <- exp(a)
             probs <- exp_vals / sum(exp_vals)
-
-            # Handle numerical issues
-            probs[is.na(probs)] <- 0.25
-            if (sum(probs) == 0) probs <- rep(0.25, 4)
-            probs <- probs / sum(probs)
 
             # Sample choice
             x[s, t] <- sample(1:4, 1, prob = probs)

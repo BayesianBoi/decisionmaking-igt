@@ -1,69 +1,72 @@
 model {
-  
+
   # Group-level priors (weakly informative)
-  mu_theta ~ dnorm(0,1)T(0,1)
+  mu_theta  ~ dnorm(0,1)T(1.0E-6, 1)   # avoid theta=0
   mu_lambda ~ dnorm(0,1)T(0,1)
-  mu_phi ~ dnorm(0,1)T(-5,5)
-  mu_cons ~ dnorm(0,1)T(0,5)
-  
+  mu_phi    ~ dnorm(0,1)T(-5,5)
+  mu_cons   ~ dnorm(0,1)T(0,5)
+
   # Precision priors for between-subject variability
-  lambda_theta ~ dgamma(1, 0.5)
+  lambda_theta  ~ dgamma(1, 0.5)
   lambda_lambda ~ dgamma(1, 0.5)
-  lambda_phi ~ dgamma(1, 0.5)
-  lambda_cons ~ dgamma(1, 0.5)
-  
+  lambda_phi    ~ dgamma(1, 0.5)
+  lambda_cons   ~ dgamma(1, 0.5)
+
   for (s in 1:nsubs) {
-    
-    # Subject-level parameters with truncation to valid ranges
-    theta[s] ~ dnorm(mu_theta, lambda_theta)T(0,1)
-    lam[s] ~ dnorm(mu_lambda, lambda_lambda)T(0,1)
-    phi[s] ~ dnorm(mu_phi, lambda_phi)T(-5,5)
-    cons[s] ~ dnorm(mu_cons, lambda_cons)T(0,5)
-    
-    # Consistency transformation: C = 3^beta - 1 (Equation 7 in Yang et al. 2025)
-    C[s] <- pow(3, cons[s]) - 1
-    
-    # Initial values at t=1 (all weights start at zero)
+
+    # Subject-level parameters
+    theta[s] ~ dnorm(mu_theta,  lambda_theta)T(1.0E-6, 1)
+    lam[s]   ~ dnorm(mu_lambda, lambda_lambda)T(0,1)
+    phi[s]   ~ dnorm(mu_phi,    lambda_phi)T(-5,5)
+    cons[s]  ~ dnorm(mu_cons,   lambda_cons)T(0,5)
+
+    # Yang et al. (2025): C = 3*beta - 1
+    C[s] <- 3 * cons[s] - 1
+
+    # Initial values at t=1
     for (d in 1:4) {
-        Exploit[s,1,d] <- 0
-        Explore[s,1,d] <- 0
+      Exploit[s,1,d] <- 0
+      Explore[s,1,d] <- 0
     }
-    
+
     for (t in 2:ntrials[s]) {
-      
-      # Value function: V(t) = Gain(t)^theta - Loss(t)^theta (Equation 2 in Yang et al. 2025)
-      # Gain and Loss are passed separately, Loss is already negative so we use abs()
+
+      # Value function: V = Gain^theta - |Loss|^theta
       V[s,t] <- pow(Gain[s,t-1], theta[s]) - pow(abs(Loss[s,t-1]), theta[s])
-      
+
       for (d in 1:4) {
-        
-        # Exploitation updates (Equations 1 and 3 in Yang et al. 2025)
-        # For unchosen: Exploitation_d(t+1) = (1 - lambda) * Exploitation_d(t)
-        # For chosen:   Exploitation_d(t+1) = (1 - lambda) * Exploitation_d(t) + V(t)
-        Exploit_decay[s,t,d] <- (1 - lam[s]) * Exploit[s,t-1,d]
+
+        # Exploitation updates
+        Exploit_decay[s,t,d]  <- (1 - lam[s]) * Exploit[s,t-1,d]
         Exploit_chosen[s,t,d] <- (1 - lam[s]) * Exploit[s,t-1,d] + V[s,t]
         Exploit[s,t,d] <- ifelse(d == x[s,t-1], Exploit_chosen[s,t,d], Exploit_decay[s,t,d])
-        
-        # Exploration updates (Equations 4 and 5 in Yang et al. 2025)
-        # For chosen:   Exploration_d(t+1) = 0
-        # For unchosen: Exploration_d(t+1) = lambda * Exploration_d(t) + (1 - lambda) * phi
+
+        # Exploration updates
         Explore_unchosen[s,t,d] <- lam[s] * Explore[s,t-1,d] + (1 - lam[s]) * phi[s]
         Explore[s,t,d] <- ifelse(d == x[s,t-1], 0, Explore_unchosen[s,t,d])
-        
-        # Combined value for softmax
+
+        # Combined value
         TotalVal[s,t,d] <- Exploit[s,t,d] + Explore[s,t,d]
-        
-        # Softmax numerator (Equation 6 in Yang et al. 2025)
-        exp_p[s,t,d] <- exp(C[s] * TotalVal[s,t,d])
+
+        # Linear predictor for softmax
+        a[s,t,d] <- C[s] * TotalVal[s,t,d]
       }
-      
-      # Softmax probabilities
+
+      # Stable softmax: subtract max(a) before exp()
+      amax[s,t] <- max(a[s,t,1:4])
+
       for (d in 1:4) {
-        p[s,t,d] <- exp_p[s,t,d] / sum(exp_p[s,t,])
+        exp_p[s,t,d] <- exp(a[s,t,d] - amax[s,t])
       }
-      
-      # Choice likelihood
-      x[s,t] ~ dcat(p[s,t,])
+
+      denom[s,t] <- sum(exp_p[s,t,1:4])
+
+      for (d in 1:4) {
+        p[s,t,d] <- exp_p[s,t,d] / denom[s,t]
+      }
+
+      # Choice likelihood (explicit slice)
+      x[s,t] ~ dcat(p[s,t,1:4])
     }
   }
 }
