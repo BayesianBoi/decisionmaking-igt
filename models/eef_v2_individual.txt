@@ -1,0 +1,52 @@
+model {
+  
+  # Individual-level model for posterior predictive checks
+  # Parameters estimated directly for a single subject
+  
+  # Priors for individual parameters
+  theta ~ dunif(0, 1)
+  lam ~ dunif(0, 1)
+  phi ~ dunif(-5, 5)
+  cons ~ dunif(0, 5)
+  
+  # Consistency transformation: C = 3^beta - 1
+  C <- pow(3, cons) - 1
+  
+  # Initial values at t=1
+  for (d in 1:4) {
+      Exploit[1,d] <- 0
+      Explore[1,d] <- 0
+  }
+  
+  for (t in 2:ntrials) {
+    
+    # Value function: V(t) = Gain(t)^theta - Loss(t)^theta
+    V[t] <- pow(Gain[t-1], theta) - pow(abs(Loss[t-1]), theta)
+    
+    for (d in 1:4) {
+      
+      # Exploitation updates
+      Exploit_decay[t,d] <- (1 - lam) * Exploit[t-1,d]
+      Exploit_chosen[t,d] <- (1 - lam) * Exploit[t-1,d] + V[t]
+      Exploit[t,d] <- ifelse(d == x[t-1], Exploit_chosen[t,d], Exploit_decay[t,d])
+      
+      # Exploration updates
+      Explore_unchosen[t,d] <- lam * Explore[t-1,d] + (1 - lam) * phi
+      Explore[t,d] <- ifelse(d == x[t-1], 0, Explore_unchosen[t,d])
+      
+      # Combined value
+      TotalVal[t,d] <- Exploit[t,d] + Explore[t,d]
+      
+      # Softmax numerator
+      exp_p[t,d] <- exp(C * TotalVal[t,d])
+    }
+    
+    # Softmax probabilities
+    for (d in 1:4) {
+      p[t,d] <- exp_p[t,d] / sum(exp_p[t,])
+    }
+    
+    # Choice likelihood
+    x[t] ~ dcat(p[t,])
+  }
+}
