@@ -16,6 +16,10 @@ model {
   for (d in 1:4) {
     Exploit[1,d] <- 0
     Explore[1,d] <- 0
+
+    # Define p at t=1 so p has dimension [1:ntrials, 1:4] in the output
+    p[1,d] <- 0.25
+    exp_p[1,d] <- 1
   }
 
   for (t in 2:ntrials) {
