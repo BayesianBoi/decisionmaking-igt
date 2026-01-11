@@ -38,7 +38,7 @@ if ("--test" %in% args) {
     niterations <- 100 # Standard recovery count
 }
 
-nsubs <- 48 # Number of simulated subjects (matches Ahn 2014 HC group size)
+nsubs <- 24 # Number of simulated subjects (matches Ahn 2014 HC group size)
 ntrials_all <- rep(100, nsubs)
 
 # Main Recovery Loop (Parallelized)

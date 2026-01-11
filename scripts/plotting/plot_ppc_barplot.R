@@ -78,6 +78,13 @@ p <- ggplot(all_data, aes(x = Model, y = Mean, fill = Group)) +
         color = "black",
         linewidth = 0.6
     ) +
+    geom_text(
+        aes(y = Mean + SD, label = sprintf("%.0f%%", Mean * 100)),
+        position = position_dodge(width = 0.8),
+        vjust = -0.5,
+        size = 3,
+        fontface = "bold"
+    ) +
     scale_fill_manual(values = colors) +
     scale_y_continuous(limits = c(0, 0.8), breaks = seq(0, 0.8, 0.1), expand = c(0, 0)) +
     labs(

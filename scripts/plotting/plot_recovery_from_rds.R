@@ -40,25 +40,60 @@ plot_scatter <- function(true_vals, infer_vals, param_name) {
             x = "True", y = "Recovered"
         ) +
         theme_minimal(base_size = 11) +
-        theme(plot.title = element_text(face = "bold", hjust = 0.5))
+        theme(
+            plot.title = element_text(face = "bold", hjust = 0.5, size = 16),
+            plot.subtitle = element_text(hjust = 0.5, size = 12)
+        )
 }
 
-# Get parameter names based on model
+# parameter names and display labels with Greek symbols
 if (model == "eef") {
     mu_params <- c("mu_theta", "mu_lambda", "mu_phi", "mu_cons")
-    mu_labels <- c("Outcome Sensitivity", "Forgetting Rate", "Exploration Bonus", "Choice Consistency")
+    mu_labels <- c(
+        expression(paste("Value Sensitivity (", theta, ")")),
+        expression(paste("Forgetting Rate (", lambda, ")")),
+        expression(paste("Exploration Bonus (", phi, ")")),
+        expression(paste("Consistency (", beta, ")"))
+    )
     sigma_params <- c("sigma_theta", "sigma_lambda", "sigma_phi", "sigma_cons")
-    sigma_labels <- mu_labels
+    sigma_labels <- c(
+        expression(paste(sigma[theta])),
+        expression(paste(sigma[lambda])),
+        expression(paste(sigma[phi])),
+        expression(paste(sigma[beta]))
+    )
 } else if (model == "pvl_delta") {
     mu_params <- c("mu_A", "mu_a", "mu_w", "mu_theta")
-    mu_labels <- c("Outcome Sensitivity (A)", "Learning Rate (a)", "Loss Aversion (w)", "Inv. Temperature")
+    mu_labels <- c(
+        expression(paste("Outcome Sensitivity (", A, ")")),
+        expression(paste("Learning Rate (", a, ")")),
+        expression(paste("Loss Aversion (", w, ")")),
+        expression(paste("Inverse Temperature (", theta, ")"))
+    )
     sigma_params <- c("sigma_A", "sigma_a", "sigma_w", "sigma_theta")
-    sigma_labels <- mu_labels
+    sigma_labels <- c(
+        expression(paste(sigma[A])),
+        expression(paste(sigma[a])),
+        expression(paste(sigma[w])),
+        expression(paste(sigma[theta]))
+    )
 } else if (model == "orl") {
     mu_params <- c("mu_a_rew", "mu_a_pun", "mu_K", "mu_omega_f", "mu_omega_p")
-    mu_labels <- c("Reward LR", "Punishment LR", "Decay (K)", "Freq Weight", "Persev Weight")
+    mu_labels <- c(
+        expression(paste("Reward LR (", A[rew], ")")),
+        expression(paste("Punishment LR (", A[pun], ")")),
+        expression(paste("Decay (", K, ")")),
+        expression(paste("Frequency Weight (", omega[F], ")")),
+        expression(paste("Perseverance Weight (", omega[P], ")"))
+    )
     sigma_params <- c("sigma_a_rew", "sigma_a_pun", "sigma_K", "sigma_omega_f", "sigma_omega_p")
-    sigma_labels <- mu_labels
+    sigma_labels <- c(
+        expression(paste(sigma[A[rew]])),
+        expression(paste(sigma[A[pun]])),
+        expression(paste(sigma[K])),
+        expression(paste(sigma[omega[F]])),
+        expression(paste(sigma[omega[P]]))
+    )
 } else {
     stop("Unknown model: ", model)
 }
@@ -99,8 +134,7 @@ for (i in seq_along(sigma_params)) {
     infer_vals <- sapply(rec, function(x) x[[infer_col]])
 
     if (length(true_vals) > 0 && !all(is.na(true_vals))) {
-        title_text <- paste0("Sigma ", sigma_labels[i])
-        sigma_plots[[length(sigma_plots) + 1]] <- plot_scatter(true_vals, infer_vals, title_text)
+        sigma_plots[[length(sigma_plots) + 1]] <- plot_scatter(true_vals, infer_vals, sigma_labels[i])
     }
 }
 

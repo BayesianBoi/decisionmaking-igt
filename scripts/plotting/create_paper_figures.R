@@ -89,10 +89,10 @@ eef_files <- list(
 
 eef_params <- c("mu_lambda", "mu_theta", "mu_phi", "mu_cons")
 eef_labels <- c(
-    "mu_lambda" = "Forgetting Rate (lambda)",
-    "mu_theta" = "Outcome Sensitivity (theta)",
-    "mu_phi" = "Exploration Bonus (phi)",
-    "mu_cons" = "Choice Consistency (c)"
+    "mu_lambda" = "Forgetting~Rate~(lambda)",
+    "mu_theta" = "Value~Sensitivity~(theta)",
+    "mu_phi" = "Exploration~Bonus~(phi)",
+    "mu_cons" = "Consistency~(beta)"
 )
 
 eef_posteriors <- data.frame()
@@ -115,14 +115,14 @@ for (grp in names(eef_files)) {
 eef_posteriors$group <- factor(eef_posteriors$group, levels = c("HC", "Amph", "Hero"))
 eef_posteriors$parameter <- factor(eef_posteriors$parameter,
     levels = c(
-        "Forgetting Rate (lambda)", "Outcome Sensitivity (theta)",
-        "Exploration Bonus (phi)", "Choice Consistency (c)"
+        "Forgetting~Rate~(lambda)", "Value~Sensitivity~(theta)",
+        "Exploration~Bonus~(phi)", "Consistency~(beta)"
     )
 )
 
 p_eef <- ggplot(eef_posteriors, aes(x = value, fill = group, colour = group)) +
     geom_density(alpha = 0.4, linewidth = 0.8) +
-    facet_wrap(~parameter, scales = "free", ncol = 2) +
+    facet_wrap(~parameter, scales = "free", ncol = 2, labeller = label_parsed) +
     scale_fill_manual(values = group_colors) +
     scale_colour_manual(values = group_colors) +
     labs(
@@ -135,7 +135,7 @@ p_eef <- ggplot(eef_posteriors, aes(x = value, fill = group, colour = group)) +
     theme_minimal(base_size = 11) +
     theme(
         legend.position = "bottom",
-        strip.text = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 12),
         panel.grid.minor = element_blank(),
         plot.title = element_text(hjust = 0.5, face = "bold")
     )
@@ -154,11 +154,11 @@ orl_files <- list(
 
 orl_params <- c("mu_a_rew", "mu_a_pun", "mu_K", "mu_omega_f", "mu_omega_p")
 orl_labels <- c(
-    "mu_a_rew" = "Reward Learning Rate",
-    "mu_a_pun" = "Punishment Learning Rate",
-    "mu_K" = "Perseverance Decay (K)",
-    "mu_omega_f" = "Frequency Weight",
-    "mu_omega_p" = "Perseverance Weight"
+    "mu_a_rew" = "Reward~LR~(A[rew])",
+    "mu_a_pun" = "Punishment~LR~(A[pun])",
+    "mu_K" = "Decay~(K)",
+    "mu_omega_f" = "Frequency~Weight~(omega[F])",
+    "mu_omega_p" = "Perseverance~Weight~(omega[P])"
 )
 
 orl_posteriors <- data.frame()
@@ -181,14 +181,14 @@ for (grp in names(orl_files)) {
 orl_posteriors$group <- factor(orl_posteriors$group, levels = c("HC", "Amph", "Hero"))
 orl_posteriors$parameter <- factor(orl_posteriors$parameter,
     levels = c(
-        "Reward Learning Rate", "Punishment Learning Rate",
-        "Perseverance Decay (K)", "Frequency Weight", "Perseverance Weight"
+        "Reward~LR~(A[rew])", "Punishment~LR~(A[pun])",
+        "Decay~(K)", "Frequency~Weight~(omega[F])", "Perseverance~Weight~(omega[P])"
     )
 )
 
 p_orl <- ggplot(orl_posteriors, aes(x = value, fill = group, colour = group)) +
     geom_density(alpha = 0.4, linewidth = 0.8) +
-    facet_wrap(~parameter, scales = "free", ncol = 3) +
+    facet_wrap(~parameter, scales = "free", ncol = 3, labeller = label_parsed) +
     scale_fill_manual(values = group_colors) +
     scale_colour_manual(values = group_colors) +
     labs(
@@ -201,7 +201,7 @@ p_orl <- ggplot(orl_posteriors, aes(x = value, fill = group, colour = group)) +
     theme_minimal(base_size = 11) +
     theme(
         legend.position = "bottom",
-        strip.text = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 12),
         panel.grid.minor = element_blank(),
         plot.title = element_text(hjust = 0.5, face = "bold")
     )
@@ -220,10 +220,10 @@ pvl_files <- list(
 
 pvl_params <- c("mu_A", "mu_a", "mu_w", "mu_theta")
 pvl_labels <- c(
-    "mu_A" = "Outcome Sensitivity (A)",
-    "mu_a" = "Learning Rate (a)",
-    "mu_w" = "Loss Aversion (w)",
-    "mu_theta" = "Response Consistency (theta)"
+    "mu_A" = "Outcome~Sensitivity~(A)",
+    "mu_a" = "Learning~Rate~(a)",
+    "mu_w" = "Loss~Aversion~(w)",
+    "mu_theta" = "Inverse~Temperature~(theta)"
 )
 
 pvl_posteriors <- data.frame()
@@ -246,14 +246,14 @@ for (grp in names(pvl_files)) {
 pvl_posteriors$group <- factor(pvl_posteriors$group, levels = c("HC", "Amph", "Hero"))
 pvl_posteriors$parameter <- factor(pvl_posteriors$parameter,
     levels = c(
-        "Outcome Sensitivity (A)", "Learning Rate (a)",
-        "Loss Aversion (w)", "Response Consistency (theta)"
+        "Outcome~Sensitivity~(A)", "Learning~Rate~(a)",
+        "Loss~Aversion~(w)", "Inverse~Temperature~(theta)"
     )
 )
 
 p_pvl <- ggplot(pvl_posteriors, aes(x = value, fill = group, colour = group)) +
     geom_density(alpha = 0.4, linewidth = 0.8) +
-    facet_wrap(~parameter, scales = "free", ncol = 2) +
+    facet_wrap(~parameter, scales = "free", ncol = 2, labeller = label_parsed) +
     scale_fill_manual(values = group_colors) +
     scale_colour_manual(values = group_colors) +
     labs(
@@ -266,7 +266,7 @@ p_pvl <- ggplot(pvl_posteriors, aes(x = value, fill = group, colour = group)) +
     theme_minimal(base_size = 11) +
     theme(
         legend.position = "bottom",
-        strip.text = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 12),
         panel.grid.minor = element_blank(),
         plot.title = element_text(hjust = 0.5, face = "bold")
     )
