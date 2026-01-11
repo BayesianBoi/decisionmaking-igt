@@ -1,16 +1,14 @@
 # EEF Model - Yang et al. (2025)
 # Exploration-Exploitation with Forgetting
 #
-# Key equations from the paper:
+#equations from the paper:
 #   Value:       V(t) = G(t)^theta - |L(t)|^theta
 #   Exploit:     E_i(t+1) = (1-lambda)*E_i(t) + V(t)  if chosen
 #                E_j(t+1) = (1-lambda)*E_j(t)         if unchosen
 #   Explore:     X_i(t+1) = 0                         if chosen
 #                X_j(t+1) = lambda*X_j(t) + (1-lambda)*phi  if unchosen
 #   Choice:      P(d) = softmax(c * [E(d) + X(d)])
-#
-# The forgetting rate lambda controls how fast values decay.
-# High lambda = fast forgetting = more exploration-driven behavior.
+
 
 model {
 
