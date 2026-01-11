@@ -1,16 +1,13 @@
 #!/usr/bin/env Rscript
-# =============================================================================
-# FIT EEF MODEL (JAGS)
-# =============================================================================
-# Fits the Exploitation-Exploration with Forgetting model (Yang et al. 2025)
-#   - V(t) = Gain(t)^theta - Loss(t)^theta (separate gain/loss)
-#   - Exploitation chosen: (1-lambda)*Exploit + V(t)
-#   - Exploration unchosen: lambda*Explore + (1-lambda)*phi
 #
-# Usage: Rscript fit_eef.R [HC|Amph|Hero]
-# =============================================================================
+# fit_eef.R
+# Fits the EEF model (Yang et al. 2025) using hierarchical Bayesian estimation.
+# The model separates exploration from exploitation and includes a forgetting
+# mechanism that lets unchosen deck values decay over time.
+#
+# Run with: Rscript fit_eef.R [HC|Amph|Hero]
+#
 
-# Setup
 required_packages <- c("R2jags", "parallel")
 new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
 if (length(new_packages)) install.packages(new_packages, repos = "http://cran.us.r-project.org")
@@ -39,12 +36,12 @@ cat("\n================================================\n")
 cat("PROCESSING GROUP:", target_group, "(", study_label, ")\n")
 cat("================================================\n")
 
-# Load Data
+# Pull in the data loading functions and grab our target group
 source("utils/load_data.R")
 all_data <- load_all_igt_data()
 raw_data <- all_data[all_data$study == study_label, ]
 
-# Data Preparation
+# Set up the arrays we need for JAGS
 subIDs <- unique(raw_data$subj)
 nsubs <- length(subIDs)
 ntrials_max <- 100
@@ -60,12 +57,11 @@ for (s in 1:nsubs) {
   subj_df <- raw_data[raw_data$subj == subIDs[s], ]
   ntrials_all[s] <- nrow(subj_df)
 
-  # Choices
   x_sub <- subj_df$choice
   length(x_sub) <- ntrials_max
   x_all[s, ] <- x_sub
 
-  # Separate gain and loss
+  # EEF wants gains and losses as separate inputs
   gain_sub <- subj_df$gain
   loss_sub <- subj_df$loss
   length(gain_sub) <- ntrials_max
@@ -75,17 +71,19 @@ for (s in 1:nsubs) {
   Loss_all[s, ] <- loss_sub
 }
 
-# Scale outcomes by 100 to prevent numerical issues
+# Scale by dividing by 100. Keeps the numbers in a sensible range for the
+# sampler and avoids numerical overflow in the value calculations.
 cat("Scaling outcomes (divide by 100)...\n")
 Gain_all <- Gain_all / 100
 Loss_all <- Loss_all / 100
 
-# JAGS Fitting
-output_dir <- "outputs/parameter_estimation/eef"
+# Where to save the fitted model
+output_dir <- "data/processed/fits/eef"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 model_file <- "models/eef.txt"
 
+# We want both group-level and individual-level parameters saved
 params <- c(
   "mu_theta", "mu_lambda", "mu_phi", "mu_cons",
   "lambda_theta", "lambda_lambda", "lambda_phi", "lambda_cons",
@@ -118,10 +116,8 @@ fit <- jags.parallel(
 end_time <- Sys.time()
 cat("Fitting complete. Duration:", difftime(end_time, start_time, units = "mins"), "minutes\n")
 
-# Save Results
 save_path <- file.path(output_dir, paste0("eef_fit_", target_group, ".rds"))
 saveRDS(fit, file = save_path)
 cat("Results saved to:", save_path, "\n")
 
-# Basic Diagnostics
 print(fit)

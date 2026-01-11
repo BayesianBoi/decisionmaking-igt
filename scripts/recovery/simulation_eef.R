@@ -1,9 +1,6 @@
-# =============================================================================
 # Simulation function for EEF (Yang et al. 2025)
-# =============================================================================
 # Generates choice data from known parameter values
 # Matches the exact specification from the original paper
-# =============================================================================
 
 simulation_eef <- function(payoff_struct, nsubs, ntrials,
                            mu_theta, mu_lambda, mu_phi, mu_cons,

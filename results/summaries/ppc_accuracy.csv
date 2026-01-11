@@ -1,0 +1,10 @@
+"Model","Group","Mean_Accuracy","SD"
+"EEF","HC",44.9,12.7
+"EEF","Amph",48.4,11.6
+"EEF","Hero",50.4,11.6
+"ORL","HC",45.8,11.2
+"ORL","Amph",48.9,9.7
+"ORL","Hero",51.1,12
+"PVL_DELTA","HC",40.1,11.4
+"PVL_DELTA","Amph",41.1,12.2
+"PVL_DELTA","Hero",43,13.5

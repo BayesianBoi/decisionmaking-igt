@@ -1,16 +1,11 @@
-# ==============================================================================
 # PVL-Delta Parameter Recovery - Batch Worker Script
-# ==============================================================================
 # This script runs a subset of recovery iterations for the PVL-Delta model.
 # It is designed to be run in parallel via tmux or another scheduler.
 #
 # Usage:
 #   Rscript recovery_pvl_delta_batch.R --seed 123 --iter 10 --output path/to/save.rds
-# ==============================================================================
 
-# ------------------------------------------------------------------------------
-# 1. Parse Command Line Arguments
-# ------------------------------------------------------------------------------
+# parse args
 args <- commandArgs(trailingOnly = TRUE)
 
 # Default values
@@ -34,9 +29,7 @@ cat("Iterations:", n_iter, "\n")
 cat("Output:", output_file, "\n")
 cat("----------------------------------------------------------------\n")
 
-# ------------------------------------------------------------------------------
-# 2. Dependencies & Setup
-# ------------------------------------------------------------------------------
+# dependencies
 # Load required packages (Base R style)
 required_packages <- c("R2jags", "parallel", "extraDistr", "truncnorm")
 new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
@@ -56,17 +49,13 @@ MPD <- function(x) {
     density(x)$x[which.max(density(x)$y)]
 }
 
-# ------------------------------------------------------------------------------
-# 3. Configuration
-# ------------------------------------------------------------------------------
+# config
 set.seed(seed)
 nsubs <- 24 # Subjects per group (same as main recovery)
 ntrials_all <- rep(100, nsubs)
 payoff_struct <- generate_modified_igt_payoff(ntrials = 100, scale = TRUE)
 
-# ------------------------------------------------------------------------------
-# 4. Run Iterations
-# ------------------------------------------------------------------------------
+# main loop
 results_list <- list()
 
 for (i in 1:n_iter) {
@@ -188,9 +177,7 @@ for (i in 1:n_iter) {
     }
 }
 
-# ------------------------------------------------------------------------------
-# 5. Save Results
-# ------------------------------------------------------------------------------
+# save results
 # Ensure directory exists
 dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
 

@@ -1,16 +1,11 @@
-# ==============================================================================
 # PVL-Delta Parameter Recovery - Batch Results Combiner
-# ==============================================================================
 # This script reads all partial .rds files from "outputs/recovery/parts_pvl_delta",
 # combines them, and generates the final recovery plots and summary CSV.
 #
 # Usage:
 #   Rscript combine_pvl_delta_batches.R
-# ==============================================================================
 
-# ------------------------------------------------------------------------------
-# 1. Dependencies & Utils
-# ------------------------------------------------------------------------------
+# dependencies
 required_packages <- c("ggplot2", "ggpubr", "dplyr", "tidyr")
 new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
 if (length(new_packages)) install.packages(new_packages, repos = "http://cran.us.r-project.org")
@@ -18,10 +13,8 @@ invisible(lapply(required_packages, library, character.only = TRUE))
 
 source("scripts/plotting/plotting_utils.R")
 
-# ------------------------------------------------------------------------------
-# 2. Load and Combine Results
-# ------------------------------------------------------------------------------
-parts_dir <- "outputs/recovery/parts_pvl_delta"
+# load and combine results
+parts_dir <- "data/processed/recovery/parts_pvl_delta"
 files <- list.files(parts_dir, pattern = "\\.rds$", full.names = TRUE)
 
 if (length(files) == 0) {
@@ -46,9 +39,7 @@ cat("Total valid iterations recovered:", N, "\n")
 
 if (N == 0) stop("No valid data to process.")
 
-# ------------------------------------------------------------------------------
-# 3. Extract Vectors for Plotting (Means + Sigmas)
-# ------------------------------------------------------------------------------
+# extract params
 extract_param <- function(res_list, param_name) {
     sapply(res_list, function(x) if (!is.null(x[[param_name]])) x[[param_name]] else NA)
 }
@@ -83,10 +74,8 @@ upper_mu_a <- extract_param(combined_results, "upper_mu_a")
 lower_mu_theta <- extract_param(combined_results, "lower_mu_theta")
 upper_mu_theta <- extract_param(combined_results, "upper_mu_theta")
 
-# ------------------------------------------------------------------------------
-# 4. Save Summary CSV
-# ------------------------------------------------------------------------------
-output_dir <- "outputs/recovery"
+# save csv
+output_dir <- "data/processed/recovery/pvl_delta"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 df_summary <- data.frame(
@@ -108,10 +97,8 @@ write.csv(df_summary, csv_path, row.names = FALSE)
 cat("Summary CSV saved to:", csv_path, "\n")
 
 
-# ------------------------------------------------------------------------------
-# 5. Generate Plots
-# ------------------------------------------------------------------------------
-plot_dir <- "plots/recovery"
+# plots
+plot_dir <- "figures/recovery"
 dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Means
@@ -153,9 +140,7 @@ ggsave(file.path(plot_dir, "recovery_pvl_delta_sigma.png"), sigma_plot, width = 
 print(paste("Sigma plot saved to:", file.path(plot_dir, "recovery_pvl_delta_sigma.png")))
 
 
-# ------------------------------------------------------------------------------
-# 6. Calculate and Print Metrics
-# ------------------------------------------------------------------------------
+# print metrics
 calc_metrics <- function(true, infer, lower, upper) {
     valid <- !is.na(true) & !is.na(lower) & !is.na(upper)
     true <- true[valid]

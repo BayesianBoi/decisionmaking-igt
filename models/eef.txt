@@ -1,12 +1,17 @@
+# EEF model - Yang et al 2025
+# exploitation/exploration with forgetting
+# basically VSE but we let the values decay over time
+
 model {
 
-  # Group-level priors (weakly informative)
-  mu_theta  ~ dnorm(0,1)T(1.0E-6, 1)   # avoid theta=0
-  mu_lambda ~ dnorm(0,1)T(0,1)
-  mu_phi    ~ dnorm(0,1)T(-5,5)
-  mu_cons   ~ dnorm(0,1)T(0,5)
+  # group level means - these get pooled across subjects
+  mu_theta  ~ dnorm(0,1)T(1.0E-6, 1)   # value sensitivity - cant be 0 or softmax breaks
+  mu_lambda ~ dnorm(0,1)T(0,1)         # forgetting rate
+  mu_phi    ~ dnorm(0,1)T(-5,5)        # exploration bonus (can be negative = avoid novel)
+  mu_cons   ~ dnorm(0,1)T(0,5)         # choice consistency before transformation
 
-  # Precision priors for between-subject variability
+  # between-subject precision (inverse variance)
+  # gamma priors keep these positive
   lambda_theta  ~ dgamma(1, 0.5)
   lambda_lambda ~ dgamma(1, 0.5)
   lambda_phi    ~ dgamma(1, 0.5)
@@ -14,16 +19,18 @@ model {
 
   for (s in 1:nsubs) {
 
-    # Subject-level parameters
+    # individual params drawn from group distribution
     theta[s] ~ dnorm(mu_theta,  lambda_theta)T(1.0E-6, 1)
     lam[s]   ~ dnorm(mu_lambda, lambda_lambda)T(0,1)
     phi[s]   ~ dnorm(mu_phi,    lambda_phi)T(-5,5)
     cons[s]  ~ dnorm(mu_cons,   lambda_cons)T(0,5)
 
-    # C = 3^beta - 1 gives inverse temperature scaling
+    # transform consistency to inverse temp
+    # C = 3^beta - 1 maps [0,5] to roughly [0,242]
+    # higher C = more deterministic choices
     C[s] <- pow(3, cons[s]) - 1
 
-    # Initial values at t=1
+    # start with blank slate
     for (d in 1:4) {
       Exploit[s,1,d] <- 0
       Explore[s,1,d] <- 0
@@ -31,28 +38,31 @@ model {
 
     for (t in 2:ntrials[s]) {
 
-      # Value function: V = Gain^theta - |Loss|^theta
+      # outcome from last trial goes through power function
+      # same theta for gains and losses (symmetric)
       V[s,t] <- pow(Gain[s,t-1], theta[s]) - pow(abs(Loss[s,t-1]), theta[s])
 
       for (d in 1:4) {
 
-        # Exploitation updates
+        # exploitation decays for all decks
         Exploit_decay[s,t,d]  <- (1 - lam[s]) * Exploit[s,t-1,d]
+        # chosen deck also gets the new value signal
         Exploit_chosen[s,t,d] <- (1 - lam[s]) * Exploit[s,t-1,d] + V[s,t]
         Exploit[s,t,d] <- ifelse(d == x[s,t-1], Exploit_chosen[s,t,d], Exploit_decay[s,t,d])
 
-        # Exploration updates
+        # exploration works opposite - chosen deck resets to 0
+        # unchosen decks drift toward phi (the exploration bonus)
         Explore_unchosen[s,t,d] <- lam[s] * Explore[s,t-1,d] + (1 - lam[s]) * phi[s]
         Explore[s,t,d] <- ifelse(d == x[s,t-1], 0, Explore_unchosen[s,t,d])
 
-        # Combined value
+        # add them up
         TotalVal[s,t,d] <- Exploit[s,t,d] + Explore[s,t,d]
 
-        # Linear predictor for softmax
+        # scale by inverse temp
         a[s,t,d] <- C[s] * TotalVal[s,t,d]
       }
 
-      # Stable softmax: subtract max(a) before exp()
+      # stable softmax trick - subtract max to avoid overflow
       amax[s,t] <- max(a[s,t,1:4])
 
       for (d in 1:4) {
@@ -65,7 +75,7 @@ model {
         p[s,t,d] <- exp_p[s,t,d] / denom[s,t]
       }
 
-      # Choice likelihood (explicit slice)
+      # categorical distribution over 4 decks
       x[s,t] ~ dcat(p[s,t,1:4])
     }
   }

@@ -1,12 +1,9 @@
-# ==============================================================================
 # Dependencies
 required_packages <- c("extraDistr", "truncnorm")
 new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
 if (length(new_packages)) install.packages(new_packages, repos = "http://cran.us.r-project.org")
 invisible(lapply(required_packages, library, character.only = TRUE))
-# ==============================================================================
 # PVL-Delta (Prospect Valence Learning - Delta Rule) Model Simulation
-# ==============================================================================
 #
 # Reference: Ahn et al. (2008) - following inspiration implementation
 #
@@ -16,7 +13,6 @@ invisible(lapply(required_packages, library, character.only = TRUE))
 # 1. Uses DECK-BASED indexing: payoff position depends on how many times
 #    that specific deck has been chosen, not the trial number
 # 2. Payoff structure: list with $gain and $loss matrices
-# ==============================================================================
 
 hier_PVL_sim <- function(payoff_struct, nsubs, ntrials,
                          mu_w, mu_A, mu_a, mu_theta,
@@ -26,9 +22,7 @@ hier_PVL_sim <- function(payoff_struct, nsubs, ntrials,
     X <- array(NA, c(nsubs, max(ntrials))) # Net outcomes
 
     for (s in 1:nsubs) {
-        # -------------------------------------------------------------------------
         # Sample subject-level parameters from group distributions
-        # -------------------------------------------------------------------------
         # Loss aversion w >= 0: typically 1.5-2.5 in healthy adults
         w <- rtruncnorm(1, a = 0, b = Inf, mean = mu_w, sd = sigma_w)
 
@@ -41,16 +35,12 @@ hier_PVL_sim <- function(payoff_struct, nsubs, ntrials,
         # Learning rate a (0-1)
         a <- rtruncnorm(1, a = 0, b = 1, mean = mu_a, sd = sigma_a)
 
-        # -------------------------------------------------------------------------
         # Initialize state variables
-        # -------------------------------------------------------------------------
         ev <- c(0, 0, 0, 0) # Expected values per deck
         pChoose <- c(0.25, 0.25, 0.25, 0.25) # Choice probabilities
         deckCount <- c(0, 0, 0, 0) # How many times each deck has been chosen
 
-        # -------------------------------------------------------------------------
         # Trial loop
-        # -------------------------------------------------------------------------
         for (t in 1:ntrials[s]) {
             # --- Compute choice probabilities with softmax ---
             exp_p <- exp(theta * ev)

@@ -1,10 +1,9 @@
-# Non-hierarchical ORL model for single subject
-# Priors matched to hierarchical model (no truncation at subject level)
+# ORL for single subject - used in PPC
 
 model {
   
-  # Subject-level priors (matching hierarchical with truncation)
-  a_rew ~ dnorm(0, 1)T(0,1)     # Learning rate for rewards
+  # priors - same bounds as hierarchical
+  a_rew ~ dnorm(0, 1)T(0,1)     # reward learning
   a_pun ~ dnorm(0, 1)T(0,1)     # Learning rate for punishments
   K ~ dnorm(0, 1)T(0,)          # Decay parameter
   theta <- 1                     # Fixed to 1 (matching hierarchical)
@@ -39,7 +38,7 @@ model {
     
     for (d in 1:4) {
       
-      # -------- Updating expected values ------------------------
+        # EV update
       Ev_update[t,d] <- ifelse(X[t-1] >= 0,
                                Ev[t-1,d] + a_rew * (X[t-1] - Ev[t-1,d]), 
                                Ev[t-1,d] + a_pun * (X[t-1] - Ev[t-1,d])
@@ -47,7 +46,7 @@ model {
       
       Ev[t,d] <- ifelse(d == x[t-1], Ev_update[t,d], Ev[t-1,d])
       
-      # -------- Updating expected frequencies ------------------------
+        # win frequency
       # Update expected frequencies for ALL decks - AS IF THEY WERE ALL CHOSEN
       Ef_cho[t,d] <- ifelse(X[t-1] >= 0, 
                             Ef[t-1,d] + a_rew * (signX[t] - Ef[t-1,d]),

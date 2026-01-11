@@ -46,37 +46,62 @@ results <- data.frame(
 for (model_name in models) {
     fit_file <- file.path("outputs", model_name, paste0(model_name, "_fit_", group, ".rds"))
 
+    # Handle alternative naming/path for ORL if needed (e.g. outputs/ORL vs outputs/orl)
+    if (!file.exists(fit_file) && model_name == "orl") {
+        fit_file <- file.path("outputs", "ORL", paste0("orl_fit_", group, ".rds"))
+    }
+
     if (!file.exists(fit_file)) {
         cat("Skipping", model_name, "- file not found\n")
         next
     }
 
-    fit <- readRDS(fit_file)
+    tryCatch(
+        {
+            fit <- readRDS(fit_file)
 
-    # DIC and pD are stored in the BUGSoutput slot
-    dic <- fit$BUGSoutput$DIC
-    pd <- fit$BUGSoutput$pD
+            # DIC and pD are stored in the BUGSoutput slot
+            dic <- fit$BUGSoutput$DIC
 
-    # D_bar is the fit component before the complexity penalty
-    dbar <- dic - pd
+            # R2jags sometimes stores pD as pV or pD depending on the version/method
+            if ("pD" %in% names(fit$BUGSoutput)) {
+                pd <- fit$BUGSoutput$pD
+            } else if ("pV" %in% names(fit$BUGSoutput)) {
+                pd <- fit$BUGSoutput$pV
+            } else {
+                pd <- NA
+            }
 
-    results <- rbind(results, data.frame(
-        model = model_name,
-        group = group,
-        DIC = dic,
-        pD = pd,
-        Dbar = dbar,
-        stringsAsFactors = FALSE
-    ))
+            # D_bar is the fit component before the complexity penalty
+            if (!is.na(dic) && !is.na(pd)) {
+                dbar <- dic - pd
+            } else {
+                dbar <- NA
+            }
 
-    cat(model_name, "\n")
-    cat("  DIC", round(dic, 2), "\n")
-    cat("  pD (effective params)", round(pd, 2), "\n")
-    cat("  D_bar (mean deviance)", round(dbar, 2), "\n\n")
+            results <- rbind(results, data.frame(
+                model = model_name,
+                group = group,
+                DIC = ifelse(is.null(dic), NA, dic),
+                pD = ifelse(is.null(pd), NA, pd),
+                Dbar = ifelse(is.null(dbar), NA, dbar),
+                stringsAsFactors = FALSE
+            ))
+
+            cat(model_name, "\n")
+            cat("  DIC", round(dic, 2), "\n")
+            if (!is.na(pd)) cat("  pD (effective params)", round(pd, 2), "\n")
+            if (!is.na(dbar)) cat("  D_bar (mean deviance)", round(dbar, 2), "\n\n")
+        },
+        error = function(e) {
+            cat("Error processing", model_name, ":", e$message, "\n")
+        }
+    )
 }
 
 if (nrow(results) < 2) {
-    cat("Need at least 2 models to compare.\n")
+    cat("Need at least 2 models to compare. Found:", nrow(results), "\n")
+    if (nrow(results) == 1) print(results)
     quit()
 }
 

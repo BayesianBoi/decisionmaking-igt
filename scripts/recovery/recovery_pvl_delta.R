@@ -1,10 +1,7 @@
-# ==============================================================================
 # Dependencies
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(R2jags, parallel, ggpubr, extraDistr, truncnorm)
-# ==============================================================================
 # Parameter Recovery: PVL-Delta Model
-# ==============================================================================
 #
 # Purpose: Validate that our JAGS implementation can accurately recover
 # known parameter values from simulated data.
@@ -18,13 +15,10 @@ pacman::p_load(R2jags, parallel, ggpubr, extraDistr, truncnorm)
 # Success Criteria:
 #   - Strong correlations between true and recovered parameters
 #   - No systematic bias (regression slope near 1)
-# ==============================================================================
 
 set.seed(69420)
 
-# ==============================================================================
 # Helper Functions
-# ==============================================================================
 
 # Maximum Posterior Density
 MPD <- function(x) {
@@ -41,18 +35,14 @@ source("scripts/recovery/simulation_pvl_delta.R")
 source("utils/payoff_scheme.R")
 source("scripts/plotting/plotting_utils.R")
 
-# ==============================================================================
 # Task Setup
-# ==============================================================================
 ntrials <- 100
 payoff_struct <- generate_modified_igt_payoff(ntrials, scale = FALSE) # NO scaling for PVL
 
 cat("Modified IGT Payoff (UNSCALED) loaded for PVL-Delta.\n")
 cat("PVL-Delta uses original monetary values (no /100 scaling).\n\n")
 
-# ==============================================================================
 # Recovery Configuration
-# ==============================================================================
 # Allow command line args for testing (e.g., --test)
 args <- commandArgs(trailingOnly = TRUE)
 if ("--test" %in% args) {
@@ -65,9 +55,7 @@ if ("--test" %in% args) {
 nsubs <- 24 # Reduced for computational feasibility; still valid for recovery
 ntrials_all <- rep(100, nsubs)
 
-# ==============================================================================
 # Main Recovery Loop (Parallelized)
-# ==============================================================================
 start_time <- Sys.time()
 n_cores <- min(40, parallel::detectCores() - 1)
 if (n_cores < 1) n_cores <- 1
@@ -78,9 +66,7 @@ cat("Running on", n_cores, "cores\n\n")
 
 # Wrapper function for a single recovery iteration
 run_iteration <- function(i) {
-    # -------------------------------------------------------------------------
     # Step 1: Generate True Parameters
-    # -------------------------------------------------------------------------
     mu_w <- runif(1, 0.5, 2.5) # Loss aversion
     sigma_w <- runif(1, 0.1, 0.3)
 
@@ -93,9 +79,7 @@ run_iteration <- function(i) {
     mu_a <- runif(1, 0.1, 0.5) # Learning rate
     sigma_a <- runif(1, 0.05, 0.15)
 
-    # -------------------------------------------------------------------------
     # Step 2: Simulate Data
-    # -------------------------------------------------------------------------
     sim_data <- hier_PVL_sim(
         payoff_struct = payoff_struct,
         nsubs = nsubs,
@@ -104,9 +88,7 @@ run_iteration <- function(i) {
         sigma_w = sigma_w, sigma_A = sigma_A, sigma_a = sigma_a, sigma_theta = sigma_theta
     )
 
-    # -------------------------------------------------------------------------
     # Step 3: Fit JAGS Model
-    # -------------------------------------------------------------------------
     jags_data <- list("x" = sim_data$x, "X" = sim_data$X, "ntrials" = ntrials_all, "nsubs" = nsubs)
     params <- c(
         "mu_w", "mu_A", "mu_theta", "mu_a",
@@ -126,9 +108,7 @@ run_iteration <- function(i) {
         progress.bar = "none" # Suppress output
     )
 
-    # -------------------------------------------------------------------------
     # Step 4: Extract Point Estimates
-    # -------------------------------------------------------------------------
     Y <- samples$BUGSoutput$sims.list
 
     # Return list of results
@@ -168,10 +148,8 @@ infer_mu_a <- sapply(results_list, function(x) x$infer_mu_a)
 end_time <- Sys.time()
 cat("Total time:", round(difftime(end_time, start_time, units = "mins"), 1), "minutes\n")
 
-# ==============================================================================
 # Save Results (RDS & CSV)
-# ==============================================================================
-output_dir_data <- "outputs/recovery"
+output_dir_data <- "data/processed/recovery/pvl_delta"
 dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
 
 # Save full list (includes all parameters and true values)
@@ -188,9 +166,7 @@ write.csv(df_summary, file.path(output_dir_data, "recovery_pvl_delta.csv"), row.
 
 cat("Results saved to:", output_dir_data, "\n")
 
-# ==============================================================================
 # Plotting Results
-# ==============================================================================
 pl1 <- plot_recovery(true_mu_w, infer_mu_w, "mu_w (Loss Aversion)")
 pl2 <- plot_recovery(true_mu_A, infer_mu_A, "mu_A (Outcome Sensitivity)")
 pl3 <- plot_recovery(true_mu_theta, infer_mu_theta, "mu_theta (Inv. Temperature)")
@@ -198,7 +174,7 @@ pl4 <- plot_recovery(true_mu_a, infer_mu_a, "mu_a (Learning Rate)")
 
 final_plot <- ggarrange(pl1, pl2, pl3, pl4, nrow = 2, ncol = 2)
 
-output_dir <- "analysis/plots/recovery"
+output_dir <- "figures/recovery"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 ggsave(file.path(output_dir, "recovery_pvl_delta.png"), final_plot,
     width = 12, height = 10, dpi = 150

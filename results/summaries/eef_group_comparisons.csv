@@ -1,0 +1,13 @@
+"Parameter","Comparison","Diff_Mean","HDI_Lower","HDI_Upper","P_G1_Greater","Excludes_Zero"
+"mu_theta","HC vs Amph",-0.066,-0.591,0.354,0.394,FALSE
+"mu_theta","HC vs Hero",0.076,-0.14,0.341,0.723,FALSE
+"mu_theta","Amph vs Hero",0.142,-0.137,0.577,0.793,FALSE
+"mu_lambda","HC vs Amph",0.03,-0.492,0.595,0.567,FALSE
+"mu_lambda","HC vs Hero",-0.128,-0.792,0.422,0.341,FALSE
+"mu_lambda","Amph vs Hero",-0.158,-0.856,0.378,0.293,FALSE
+"mu_phi","HC vs Amph",-0.529,-2.008,1.06,0.217,FALSE
+"mu_phi","HC vs Hero",0.099,-1.603,2.026,0.526,FALSE
+"mu_phi","Amph vs Hero",0.628,-1.556,2.706,0.729,FALSE
+"mu_cons","HC vs Amph",0.07,-0.279,0.407,0.65,FALSE
+"mu_cons","HC vs Hero",-0.025,-0.383,0.323,0.449,FALSE
+"mu_cons","Amph vs Hero",-0.094,-0.415,0.241,0.281,FALSE

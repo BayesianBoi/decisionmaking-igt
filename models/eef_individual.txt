@@ -1,10 +1,10 @@
 model {
 
-  # Individual-level model for posterior predictive checks
-  # Parameters estimated directly for a single subject
+# EEF model for single subject PPC
+# same logic as hierarchical but no pooling
 
-  # Priors for individual parameters
-  theta ~ dunif(1.0E-6, 1)   # avoid theta = 0 (prevents pow(0,0) issues)
+  # flat priors - let the data speak
+  theta ~ dunif(1.0E-6, 1)   # cant be exactly 0
   lam   ~ dunif(0, 1)
   phi   ~ dunif(-5, 5)
   cons  ~ dunif(0, 5)

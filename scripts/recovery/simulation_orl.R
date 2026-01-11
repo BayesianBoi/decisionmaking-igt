@@ -1,13 +1,10 @@
-# ==============================================================================
 # Dependencies
 # Dependencies
 required_packages <- c("extraDistr", "truncnorm")
 new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
 if (length(new_packages)) install.packages(new_packages, repos = "http://cran.us.r-project.org")
 invisible(lapply(required_packages, library, character.only = TRUE))
-# ==============================================================================
 # ORL (Outcome-Representation Learning) Model Simulation
-# ==============================================================================
 #
 # Reference: Haines et al. (2018)
 #
@@ -18,7 +15,6 @@ invisible(lapply(required_packages, library, character.only = TRUE))
 # 2. Perseverance (PS) initialized to 0.
 # 3. Weights (omega) are unbounded.
 # 4. Payoff structure input: List containing gain and loss matrices.
-# ==============================================================================
 
 hier_ORL_sim <- function(payoff_struct, nsubs, ntrials,
                          mu_a_rew, mu_a_pun, mu_K, mu_omega_f, mu_omega_p,
@@ -32,9 +28,7 @@ hier_ORL_sim <- function(payoff_struct, nsubs, ntrials,
     X <- array(NA, c(nsubs, max(ntrials))) # Net outcomes
 
     for (s in 1:nsubs) {
-        # -------------------------------------------------------------------------
         # Sample subject-level parameters from group distributions
-        # -------------------------------------------------------------------------
         a_rew <- rtruncnorm(1, a = 0, b = 1, mean = mu_a_rew, sd = sigma_a_rew)
         a_pun <- rtruncnorm(1, a = 0, b = 1, mean = mu_a_pun, sd = sigma_a_pun)
         K <- rtruncnorm(1, a = 0, b = Inf, mean = mu_K, sd = sigma_K)
@@ -44,18 +38,14 @@ hier_ORL_sim <- function(payoff_struct, nsubs, ntrials,
         omega_f <- rnorm(1, mean = mu_omega_f, sd = sigma_omega_f)
         omega_p <- rnorm(1, mean = mu_omega_p, sd = sigma_omega_p)
 
-        # -------------------------------------------------------------------------
         # Initialize state variables (matching inspiration code)
-        # -------------------------------------------------------------------------
         ev <- c(0, 0, 0, 0) # Expected values per deck
         ef <- c(0, 0, 0, 0) # Expected frequencies per deck
         pers <- c(1, 1, 1, 1) # Perseverance initialized to 1 (matching JAGS model)
         pChoose <- c(0.25, 0.25, 0.25, 0.25) # Choice probabilities
         deckCount <- c(0, 0, 0, 0) # How many times each deck has been chosen
 
-        # -------------------------------------------------------------------------
         # Trial loop
-        # -------------------------------------------------------------------------
         for (t in 1:ntrials[s]) {
             # --- Compute choice probabilities ---
             V <- ev + ef * omega_f + pers * omega_p

@@ -1,18 +1,13 @@
 #!/usr/bin/env Rscript
-# ==============================================================================
-# ==============================================================================
-# FIT ORL MODEL (JAGS)
-# ==============================================================================
-# Fits the Outcome-Representation Learning (ORL) model to IGT data using JAGS.
-# - Hierarchical Bayesian estimation
-# - Group-level parameters
-# - Outcomes scaled by 1/100
-# Usage: Rscript fit_orl.R [HC|Amph|Hero]
-# ==============================================================================
+#
+# fit_orl.R
+# Fits the Outcome-Representation Learning model (Haines et al. 2018) to IGT data.
+# ORL tracks both outcome values and choice frequencies, with separate learning
+# rates for wins and losses. A perseverance term captures motor repetition tendencies.
+#
+# Run with: Rscript fit_orl.R [HC|Amph|Hero]
+#
 
-# 1. Setup
-# ------------------------------------------------------------------------------
-# Dependencies
 required_packages <- c("R2jags", "parallel")
 new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
 if (length(new_packages)) install.packages(new_packages, repos = "http://cran.us.r-project.org")
@@ -41,16 +36,10 @@ cat("\n================================================\n")
 cat("PROCESSING GROUP:", target_group, "(", study_label, ")\n")
 cat("================================================\n")
 
-# 2. Load Data
-# ------------------------------------------------------------------------------
 source("utils/load_data.R")
 all_data <- load_all_igt_data()
-
-# Filter data for this group
 raw_data <- all_data[all_data$study == study_label, ]
 
-# 3. Data Preparation
-# ------------------------------------------------------------------------------
 subIDs <- unique(raw_data$subj)
 nsubs <- length(subIDs)
 ntrials_max <- 100
@@ -65,26 +54,22 @@ for (s in 1:nsubs) {
   subj_df <- raw_data[raw_data$subj == subIDs[s], ]
   ntrials_all[s] <- nrow(subj_df)
 
-  # Pad choices (x)
   x_sub <- subj_df$choice
   length(x_sub) <- ntrials_max
 
-  # Pad outcomes (X)
+  # ORL uses net outcomes (gain + loss, where loss is already negative)
   X_sub <- subj_df$gain + subj_df$loss
   length(X_sub) <- ntrials_max
 
-  # Assign to arrays
   x_all[s, ] <- x_sub
   X_all[s, ] <- X_sub
 }
 
-# SCALING: Divide outcomes by 100
+# Divide by 100 to keep numbers reasonable for the sampler
 cat("Scaling outcomes (X / 100)...\n")
 X_all <- X_all / 100
 
-# 4. JAGS Fitting
-# ------------------------------------------------------------------------------
-output_dir <- "outputs/orl"
+output_dir <- "data/processed/fits/orl"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 model_file <- "models/orl.txt"
@@ -106,6 +91,7 @@ jags_data <- list(
 
 start_time <- Sys.time()
 
+# ORL needs more iterations than EEF because of the extra parameters
 fit <- jags.parallel(
   data = jags_data,
   inits = NULL,
@@ -120,12 +106,8 @@ fit <- jags.parallel(
 end_time <- Sys.time()
 cat("Fitting complete. Duration:", end_time - start_time, "\n")
 
-# 5. Save Results
-# ------------------------------------------------------------------------------
 save_path <- file.path(output_dir, paste0("orl_fit_", target_group, ".rds"))
 saveRDS(fit, file = save_path)
 cat("Results saved to:", save_path, "\n")
 
-# 6. Basic Diagnostics
-# ------------------------------------------------------------------------------
 print(fit)

@@ -1,22 +1,15 @@
-# ==============================================================================
 # Dependencies
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(R2jags, parallel, ggpubr, extraDistr, truncnorm)
-# ==============================================================================
-# ==============================================================================
 # Parameter Recovery: ORL Model
-# ==============================================================================
 # Purpose: Validate parameter estimation accuracy using simulated data.
 # Validation Criteria:
 #   - Correlation between true and recovered parameters (r > 0.7)
 #   - Absence of systematic bias
-# ==============================================================================
 
 set.seed(69420)
 
-# ==============================================================================
 # Helper Functions
-# ==============================================================================
 MPD <- function(x) {
     density(x)$x[which(density(x)$y == max(density(x)$y))]
 }
@@ -27,20 +20,16 @@ precision_to_sd <- function(lambda) {
 
 source("scripts/recovery/simulation_orl.R")
 source("utils/payoff_scheme.R")
-source("analysis/2_plotting/plotting_utils.R")
+source("scripts/plotting/plotting_utils.R")
 
-# ==============================================================================
 # Task Setup
-# ==============================================================================
 ntrials <- 100
 payoff_struct <- generate_modified_igt_payoff(ntrials, scale = TRUE)
 
 cat("Modified IGT Payoff (Scaled /100) loaded.\n")
 cat("Payoff structure contains separate gain and loss matrices.\n\n")
 
-# ==============================================================================
 # Recovery Configuration
-# ==============================================================================
 args <- commandArgs(trailingOnly = TRUE)
 if ("--test" %in% args) {
     niterations <- 2
@@ -52,9 +41,7 @@ if ("--test" %in% args) {
 nsubs <- 48 # Number of simulated subjects (matches Ahn 2014 HC group size)
 ntrials_all <- rep(100, nsubs)
 
-# ==============================================================================
 # Main Recovery Loop (Parallelized)
-# ==============================================================================
 start_time <- Sys.time()
 n_cores <- parallel::detectCores() - 1
 if (n_cores < 1) n_cores <- 1
@@ -64,9 +51,7 @@ cat("Configuration:", niterations, "iterations x", nsubs, "subjects\n")
 cat("Running on", n_cores, "cores\n\n")
 
 run_iteration <- function(i) {
-    # -------------------------------------------------------------------------
     # Step 1: Generate True Parameters
-    # -------------------------------------------------------------------------
     mu_a_rew <- runif(1, 0.1, 0.5)
     mu_a_pun <- runif(1, 0.1, 0.5)
     sigma_a_rew <- runif(1, 0.05, 0.15)
@@ -82,9 +67,7 @@ run_iteration <- function(i) {
     sigma_omega_f <- runif(1, 0.1, 0.5)
     sigma_omega_p <- runif(1, 0.1, 0.5)
 
-    # -------------------------------------------------------------------------
     # Step 2: Simulate Data
-    # -------------------------------------------------------------------------
     sim_data <- hier_ORL_sim(
         payoff_struct = payoff_struct,
         nsubs = nsubs,
@@ -97,9 +80,7 @@ run_iteration <- function(i) {
         sigma_omega_f = sigma_omega_f, sigma_omega_p = sigma_omega_p
     )
 
-    # -------------------------------------------------------------------------
     # Step 3: Fit JAGS Model
-    # -------------------------------------------------------------------------
     jags_data <- list("x" = sim_data$x, "X" = sim_data$X, "ntrials" = ntrials_all, "nsubs" = nsubs)
 
     params <- c(
@@ -121,9 +102,7 @@ run_iteration <- function(i) {
         progress.bar = "none"
     )
 
-    # -------------------------------------------------------------------------
     # Step 4: Extract Point Estimates
-    # -------------------------------------------------------------------------
     Y <- samples$BUGSoutput$sims.list
 
     list(
@@ -163,10 +142,8 @@ infer_mu_omega_p <- sapply(results_list, function(x) x$infer_mu_omega_p)
 end_time <- Sys.time()
 cat("Total time:", round(difftime(end_time, start_time, units = "mins"), 1), "minutes\n")
 
-# ==============================================================================
 # Save Results (RDS & CSV)
-# ==============================================================================
-output_dir_data <- "outputs/recovery"
+output_dir_data <- "data/processed/recovery/orl"
 dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
 
 # Save full list (includes all parameters and true values)
@@ -184,9 +161,7 @@ write.csv(df_summary, file.path(output_dir_data, "recovery_orl.csv"), row.names 
 
 cat("Results saved to:", output_dir_data, "\n")
 
-# ==============================================================================
 # Plotting Results
-# ==============================================================================
 pl1 <- plot_recovery(true_mu_a_rew, infer_mu_a_rew, "mu_a_rew (Reward Learning)")
 pl2 <- plot_recovery(true_mu_a_pun, infer_mu_a_pun, "mu_a_pun (Punishment Learning)")
 pl3 <- plot_recovery(true_mu_K, infer_mu_K, "mu_K (Perseverance Decay)")
@@ -195,7 +170,7 @@ pl6 <- plot_recovery(true_mu_omega_p, infer_mu_omega_p, "mu_omega_p (Perseveranc
 
 final_plot <- ggarrange(pl1, pl2, pl3, pl5, pl6, nrow = 2, ncol = 3)
 
-output_dir <- "analysis/plots/recovery"
+output_dir <- "figures/recovery"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 ggsave(file.path(output_dir, "recovery_orl.png"), final_plot,
     width = 15, height = 10, dpi = 150

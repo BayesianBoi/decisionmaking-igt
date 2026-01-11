@@ -1,33 +1,20 @@
 #!/usr/bin/env Rscript
-# ==============================================================================
-# GROUP COMPARISON - Post-Hoc HDI Method
-# ==============================================================================
-# This script compares groups using the method described in Ahn et al. (2017)
-# "Revealing Neurocomputational Mechanisms of Reinforcement Learning and
-# Decision-Making With the hBayesDM Package"
 #
-# The approach is straightforward:
-# 1. We already fitted each group separately (hierarchical model per group)
-# 2. We extract the group-level posterior samples (the mu parameters)
-# 3. We compute the difference distribution between groups
-# 4. If the 95% HDI of the difference excludes zero, we have a credible difference
+# compare_groups_posthoc.R
+# Compares groups using the post-hoc HDI approach from Ahn et al. (2017).
+# We take the posterior samples from each group's fitted model and compute
+# difference distributions. If the 95% highest density interval for a difference
+# excludes zero then we have a credible group difference.
 #
-# This is simpler than fitting a joint model and gives equivalent results.
-# The advantage is that we can use our existing fits without re-running anything.
-#
-# Usage: Rscript scripts/group_comparison/compare_groups_posthoc.R <model>
+# Run with: Rscript scripts/group_comparison/compare_groups_posthoc.R <model>
 # Example: Rscript scripts/group_comparison/compare_groups_posthoc.R eef
-# ==============================================================================
+#
 
-# Load packages
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(HDInterval, ggplot2, dplyr, tidyr)
 
-set.seed(42)
+set.seed(69420)
 
-# ------------------------------------------------------------------------------
-# Parse command line arguments
-# ------------------------------------------------------------------------------
 args <- commandArgs(trailingOnly = TRUE)
 
 if (length(args) < 1) {
@@ -39,34 +26,27 @@ if (length(args) < 1) {
 
 model_name <- tolower(args[1])
 
-# Validate model
 valid_models <- c("eef", "pvl_delta", "orl")
 if (!model_name %in% valid_models) {
     stop("Invalid model. Must be one of: ", paste(valid_models, collapse = ", "))
 }
 
-# ------------------------------------------------------------------------------
-# Define which parameters to compare for each model
-# These are the group-level mean parameters (mu) that we want to test
-# ------------------------------------------------------------------------------
+# Which parameters to test for each model
 param_map <- list(
     "eef" = c("mu_theta", "mu_lambda", "mu_phi", "mu_cons"),
     "pvl_delta" = c("mu_A", "mu_a", "mu_w", "mu_theta"),
     "orl" = c("mu_a_rew", "mu_a_pun", "mu_K", "mu_omega_f", "mu_omega_p")
 )
 
-# Human-readable labels for plotting
+# Readable labels for the plots
 label_map <- list(
-    # EEF
     "mu_theta" = "Outcome Sensitivity",
     "mu_lambda" = "Forgetting Rate",
     "mu_phi" = "Exploration Bonus",
     "mu_cons" = "Choice Consistency",
-    # PVL-Delta (note: these are different from EEF despite some same names)
     "mu_A" = "Outcome Sensitivity",
     "mu_a" = "Learning Rate",
     "mu_w" = "Loss Aversion",
-    # ORL
     "mu_a_rew" = "Reward Learning Rate",
     "mu_a_pun" = "Punishment Learning Rate",
     "mu_K" = "Perseverance Decay",
@@ -81,28 +61,14 @@ cat("GROUP COMPARISON:", toupper(model_name), "\n")
 cat("Method: Post-hoc HDI (Ahn et al., 2017)\n")
 cat("========================================\n\n")
 
-# ------------------------------------------------------------------------------
-# Load the fitted models for each group
-# We need the posterior samples from each group's hierarchical fit
-# ------------------------------------------------------------------------------
+# Load fitted models
 groups <- c("HC", "Amph", "Hero")
 fits <- list()
 
-# Build path based on model name
-# The output folders have slightly different naming conventions
-output_folder <- switch(model_name,
-    "eef" = "outputs/eef",
-    "pvl_delta" = "outputs/pvl_delta",
-    "orl" = "outputs/ORL" # Note the capitalisation
-)
+fits_folder <- paste0("data/processed/fits/", model_name)
 
 for (g in groups) {
-    fit_path <- file.path(output_folder, paste0(model_name, "_fit_", g, ".rds"))
-
-    # Try alternative path naming if the first doesn't work
-    if (!file.exists(fit_path) && model_name == "orl") {
-        fit_path <- file.path("outputs/orl", paste0("orl_fit_", g, ".rds"))
-    }
+    fit_path <- file.path(fits_folder, paste0(model_name, "_fit_", g, ".rds"))
 
     if (!file.exists(fit_path)) {
         stop(
@@ -115,18 +81,13 @@ for (g in groups) {
     fits[[g]] <- readRDS(fit_path)
 }
 
-# ------------------------------------------------------------------------------
-# Extract posterior samples for each parameter and group
-# The samples are stored in fit$BUGSoutput$sims.list
-# ------------------------------------------------------------------------------
+# Pull out posterior samples for each parameter
 extract_mu <- function(fit, param) {
     samples <- fit$BUGSoutput$sims.list[[param]]
-    # Handle case where parameter might be a matrix (shouldn't be for mu params)
     if (is.matrix(samples)) samples <- samples[, 1]
     return(as.numeric(samples))
 }
 
-# Store all samples in a structured list
 posteriors <- list()
 for (g in groups) {
     posteriors[[g]] <- list()
@@ -137,11 +98,7 @@ for (g in groups) {
 
 cat("\nExtracted", length(posteriors[[groups[1]]][[params[1]]]), "posterior samples per parameter\n\n")
 
-# ------------------------------------------------------------------------------
 # Compare all pairs of groups
-# For each pair, compute the difference distribution and its 95% HDI
-# If the HDI excludes zero, we have evidence of a group difference
-# ------------------------------------------------------------------------------
 group_pairs <- list(
     c("HC", "Amph"),
     c("HC", "Hero"),
@@ -174,25 +131,20 @@ for (pair in group_pairs) {
     cat("---", g1, "vs", g2, "---\n\n")
 
     for (p in params) {
-        # Get posterior samples for this parameter from both groups
         samples_g1 <- posteriors[[g1]][[p]]
         samples_g2 <- posteriors[[g2]][[p]]
 
-        # The difference distribution tells us how much g1 differs from g2
-        # Positive values mean g1 > g2, negative means g2 > g1
+        # Positive difference means g1 > g2
         diff_samples <- samples_g1 - samples_g2
 
-        # Compute the 95% Highest Density Interval
-        # This is the narrowest interval containing 95% of the posterior mass
         hdi_95 <- hdi(diff_samples, credMass = 0.95)
 
-        # Does the HDI exclude zero? If yes, we have a credible difference
+        # If the interval does not include zero then the groups differ
         excludes_zero <- (hdi_95[1] > 0) | (hdi_95[2] < 0)
 
-        # What proportion of the posterior favours g1 > g2?
+        # What proportion of the posterior has g1 > g2?
         prob_g1_greater <- mean(diff_samples > 0)
 
-        # Store results
         results <- rbind(results, data.frame(
             model = model_name,
             parameter = p,
@@ -209,12 +161,11 @@ for (pair in group_pairs) {
             stringsAsFactors = FALSE
         ))
 
-        # Print to console
         param_label <- ifelse(p %in% names(label_map), label_map[[p]], p)
-        cat(param_label, "(", p, ")\n", sep = "")
-        cat("  ", g1, ": M =", round(mean(samples_g1), 3), "\n")
-        cat("  ", g2, ": M =", round(mean(samples_g2), 3), "\n")
-        cat("  Difference (", g1, " - ", g2, "): ",
+        cat(param_label, " (", p, ")\n", sep = "")
+        cat("  ", g1, " M =", round(mean(samples_g1), 3), "\n")
+        cat("  ", g2, " M =", round(mean(samples_g2), 3), "\n")
+        cat("  Difference (", g1, " - ", g2, ") = ",
             round(mean(diff_samples), 3), " [",
             round(hdi_95[1], 3), ", ", round(hdi_95[2], 3), "]\n",
             sep = ""
@@ -234,28 +185,20 @@ for (pair in group_pairs) {
     }
 }
 
-# ------------------------------------------------------------------------------
-# Save results
-# ------------------------------------------------------------------------------
-output_dir <- "outputs/group_comparison"
+# Save CSV of results
+output_dir <- "results/group_comparison"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 csv_path <- file.path(output_dir, paste0("group_comparison_", model_name, ".csv"))
 write.csv(results, csv_path, row.names = FALSE)
 cat("\nResults saved to:", csv_path, "\n")
 
-# ------------------------------------------------------------------------------
-# Generate plots: Overlapping posterior densities for each parameter
-# This visualises where each group's parameter distribution lies
-# Overlapping distributions = similar groups, separated = different groups
-# ------------------------------------------------------------------------------
-plot_dir <- "plots/group_comparison"
+# Density plots for each parameter
+plot_dir <- "figures/group_comparison"
 dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 
-# Define colours for groups
 group_colours <- c("HC" = "#4DAF4A", "Amph" = "#E41A1C", "Hero" = "#377EB8")
 
-# Build a long-format dataframe for ggplot
 plot_data <- data.frame()
 for (g in groups) {
     for (p in params) {
@@ -268,13 +211,11 @@ for (g in groups) {
     }
 }
 
-# Create density plots with HDI bars
 for (p in params) {
     param_label <- ifelse(p %in% names(label_map), label_map[[p]], p)
 
     p_data <- plot_data[plot_data$parameter == p, ]
 
-    # Compute HDI for each group to add as segments
     hdi_data <- data.frame()
     for (g in groups) {
         samples <- posteriors[[g]][[p]]
@@ -284,7 +225,7 @@ for (p in params) {
             hdi_lower = hdi_95[1],
             hdi_upper = hdi_95[2],
             mean_val = mean(samples),
-            y = -0.05 - 0.03 * which(groups == g) # Stagger HDI bars
+            y = -0.05 - 0.03 * which(groups == g)
         ))
     }
 
@@ -321,9 +262,7 @@ for (p in params) {
 
 cat("Posterior plots saved to:", plot_dir, "\n")
 
-# ------------------------------------------------------------------------------
-# Summary table
-# ------------------------------------------------------------------------------
+# Summary of credible differences
 cat("\n========================================\n")
 cat("SUMMARY: Parameters with credible group differences\n")
 cat("========================================\n\n")

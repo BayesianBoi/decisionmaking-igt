@@ -1,6 +1,4 @@
-# ==============================================================================
 # Modified IGT Payoff Schedule - Ahn et al. (2014) Exact Schedule
-# ==============================================================================
 #
 # This file provides the exact payoff schedule used in the Ahn et al. (2014)
 # datasets (HC, Amphetamine, Heroin groups). 
@@ -20,9 +18,7 @@
 #' @return List with $gain and $loss matrices (ntrials x 4)
 
 generate_modified_igt_payoff <- function(ntrials = 100, scale = FALSE) {
-    # =========================================================================
     # GAINS - Exact schedule from Ahn 2014
-    # =========================================================================
     # Note: Original schedule has 60 values, we repeat for 100 trials
 
     gain_A_60 <- c(
@@ -61,9 +57,7 @@ generate_modified_igt_payoff <- function(ntrials = 100, scale = FALSE) {
         75, 85, 70, 75, 85, 95, 55, 65, 80, 65
     )
 
-    # =========================================================================
     # LOSSES - Exact schedule from Ahn 2014
-    # =========================================================================
     # Deck A: Frequent small losses (50% of trials)
     loss_A_60 <- c(
         0, 0, -150, 0, -300, 0, -200, 0, -250, -350,
@@ -106,9 +100,7 @@ generate_modified_igt_payoff <- function(ntrials = 100, scale = FALSE) {
         0, 0, 0, 0, 0, 0, 0, -375, 0, 0
     )
 
-    # =========================================================================
     # Extend to ntrials by cycling (if needed)
-    # =========================================================================
     extend_schedule <- function(vec, n) {
         if (n <= length(vec)) {
             return(vec[1:n])

@@ -1,3 +1,7 @@
+# ORL model - Haines et al 2018
+# tracks EV, outcome frequency, and perseverance separately
+# theta fixed to 1 so the weights dont trade off with it
+
 model {
   
   mu_a_rew ~ dnorm(0,1)T(0,1)
@@ -31,7 +35,7 @@ model {
     omega_f[s] ~ dnorm(mu_omega_f,lambda_omega_f)
     omega_p[s] ~ dnorm(mu_omega_p,lambda_omega_p)
   
-    #------ set t1 model variables --------------------------
+    # t=1 setup
       
     Ev[s,1,1] <- 0
     Ev[s,1,2] <- 0
@@ -60,7 +64,7 @@ model {
       
       for (d in 1:4) {
         
-        # -------- Updating expected values ------------------------
+        # EV uses different learning rate for wins vs losses
         Ev_update[s,t,d] <- ifelse(X[s,t-1]>=0,
                                   Ev[s,t-1,d] + a_rew[s]*((X[s,t-1]) - Ev[s,t-1,d]), 
                                   Ev[s,t-1,d] + a_pun[s]*((X[s,t-1]) - Ev[s,t-1,d])
@@ -68,7 +72,7 @@ model {
                               
         Ev[s,t,d] <- ifelse(d==x[s,t-1],Ev_update[s,t,d],Ev[s,t-1,d])
         
-        # -------- Updating expected frequencies ------------------------
+        # win frequency tracking
         #update expected frequencies for ALL decks - AS IF THERE WERE ALL CHOSEN
         Ef_cho[s,t,d] <- ifelse(X[s,t-1]>=0, 
                                 Ef[s,t-1,d] + a_rew[s]*(signX[s,t] - Ef[s,t-1,d]),
@@ -83,7 +87,7 @@ model {
         
         #copy appropriate values to Ef variable
         Ef[s,t,d] <- ifelse(d==x[s,t-1],Ef_cho[s,t,d],Ef_not[s,t,d])  
-        #------------------------------------------------------------------
+        
         
         #ifelse needed to disctiminate between chosen and unchosen decks
         PS[s,t,d] <- ifelse(x[s,t-1]==d,1/(1+K[s]),PS[s,t-1,d]/(1+K[s]))

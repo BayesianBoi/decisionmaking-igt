@@ -1,16 +1,11 @@
-# ==============================================================================
 # EEF Parameter Recovery - Batch Results Combiner
-# ==============================================================================
 # This script reads all partial .rds files from "outputs/recovery/parts",
 # combines them, and generates the final recovery plots and summary CSV.
 #
 # Usage:
 #   a1
-# ==============================================================================
 
-# ------------------------------------------------------------------------------
-# 1. Dependencies & Utils
-# ------------------------------------------------------------------------------
+# dependencies
 # Base R package loading
 required_packages <- c("ggplot2", "ggpubr", "dplyr", "tidyr")
 new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
@@ -19,10 +14,8 @@ invisible(lapply(required_packages, library, character.only = TRUE))
 
 source("scripts/plotting/plotting_utils.R")
 
-# ------------------------------------------------------------------------------
-# 2. Load and Combine Results
-# ------------------------------------------------------------------------------
-parts_dir <- "outputs/recovery/parts_eef"
+# load and combine results
+parts_dir <- "data/processed/recovery/parts_eef"
 files <- list.files(parts_dir, pattern = "\\.rds$", full.names = TRUE)
 
 if (length(files) == 0) {
@@ -47,13 +40,7 @@ cat("Total valid iterations recovered:", N, "\n")
 
 if (N == 0) stop("No valid data to process.")
 
-# ------------------------------------------------------------------------------
-# 3. Extract Vectors for Plotting
-# ------------------------------------------------------------------------------
-
-# ------------------------------------------------------------------------------
-# 5. Extract Vectors for Plotting (Means + Sigmas)
-# ------------------------------------------------------------------------------
+# extract params
 extract_param <- function(res_list, param_name) {
     # Robust extraction: returns NA if param missing (e.g. old batch files)
     sapply(res_list, function(x) if (!is.null(x[[param_name]])) x[[param_name]] else NA)
@@ -85,10 +72,8 @@ infer_sigma_phi <- extract_param(combined_results, "infer_sigma_phi")
 true_sigma_cons <- extract_param(combined_results, "true_sigma_cons")
 infer_sigma_cons <- extract_param(combined_results, "infer_sigma_cons")
 
-# ------------------------------------------------------------------------------
-# 6. Save Summary CSV
-# ------------------------------------------------------------------------------
-output_dir <- "outputs/recovery"
+# save csv
+output_dir <- "data/processed/recovery/eef"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 df_summary <- data.frame(
@@ -109,10 +94,8 @@ csv_path <- file.path(output_dir, "recovery_eef.csv")
 write.csv(df_summary, csv_path, row.names = FALSE)
 cat("Summary CSV saved to:", csv_path, "\n")
 
-# ------------------------------------------------------------------------------
-# 7. Generate Plots (Combined Means + Sigmas)
-# ------------------------------------------------------------------------------
-plot_dir <- "plots/recovery"
+# plots
+plot_dir <- "figures/recovery"
 dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Means

@@ -1,28 +1,22 @@
-# macOS
+# mac stuff
 .DS_Store
 .Rhistory
 
-# Temporary folders (not part of pipeline)
+# temp folders from debugging
 temp/
 temp_logs/
 R/
 
-# Log files
+# log files
 logfiles/
 logs/
 
-# PPC outputs (regenerated)
-outputs/ppc/
+# model fits are too big for git (30+ MB each)
+data/processed/fits/
 
-# Plots (regenerated)
-plots/
+# old docs folder
+docs/
 
-# Output files (regenerated on run)
-# outputs/ and plots/ are tracked, but specific extensions ignored
-*.rds
-
-# R build artifacts
+# R project files
 *.Rproj.user
 .Rproj.user/
-
-docs/

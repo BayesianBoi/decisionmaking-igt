@@ -1,16 +1,11 @@
-# ==============================================================================
 # ORL Parameter Recovery - Batch Results Combiner
-# ==============================================================================
 # This script reads all partial .rds files from "outputs/recovery/parts_orl",
 # combines them, and generates the final recovery plots and summary CSV.
 #
 # Usage:
 #   Rscript combine_orl_batches.R
-# ==============================================================================
 
-# ------------------------------------------------------------------------------
-# 1. Dependencies & Utils
-# ------------------------------------------------------------------------------
+# dependencies
 required_packages <- c("ggplot2", "ggpubr", "dplyr", "tidyr")
 new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
 if (length(new_packages)) install.packages(new_packages, repos = "http://cran.us.r-project.org")
@@ -18,10 +13,8 @@ invisible(lapply(required_packages, library, character.only = TRUE))
 
 source("scripts/plotting/plotting_utils.R")
 
-# ------------------------------------------------------------------------------
-# 2. Load and Combine Results
-# ------------------------------------------------------------------------------
-parts_dir <- "outputs/recovery/parts_orl"
+# load and combine results
+parts_dir <- "data/processed/recovery/parts_orl"
 files <- list.files(parts_dir, pattern = "\\.rds$", full.names = TRUE)
 
 if (length(files) == 0) {
@@ -46,13 +39,7 @@ cat("Total valid iterations recovered:", N, "\n")
 
 if (N == 0) stop("No valid data to process.")
 
-# ------------------------------------------------------------------------------
-# 3. Extract Vectors for Plotting
-# ------------------------------------------------------------------------------
-
-# ------------------------------------------------------------------------------
-# 5. Extract Vectors for Plotting (Means + Sigmas)
-# ------------------------------------------------------------------------------
+# extract vectors for plotting
 extract_param <- function(res_list, param_name) {
     sapply(res_list, function(x) if (!is.null(x[[param_name]])) x[[param_name]] else NA)
 }
@@ -94,10 +81,8 @@ lower_mu_omega_p <- extract_param(combined_results, "lower_mu_omega_p")
 upper_mu_omega_p <- extract_param(combined_results, "upper_mu_omega_p")
 
 
-# ------------------------------------------------------------------------------
-# 6. Save Summary CSV
-# ------------------------------------------------------------------------------
-output_dir <- "outputs/recovery"
+# save csv
+output_dir <- "data/processed/recovery/orl"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 df_summary <- data.frame(
@@ -121,10 +106,8 @@ write.csv(df_summary, csv_path, row.names = FALSE)
 cat("Summary CSV saved to:", csv_path, "\n")
 
 
-# ------------------------------------------------------------------------------
-# 7. Generate Plots
-# ------------------------------------------------------------------------------
-plot_dir <- "plots/recovery"
+# generate plots
+plot_dir <- "figures/recovery"
 dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 
 cat("Generating combined plots...\n")

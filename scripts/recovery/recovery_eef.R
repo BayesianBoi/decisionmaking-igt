@@ -1,9 +1,10 @@
-# =============================================================================
-# Parameter Recovery for EEF (Yang et al. 2025)
-# =============================================================================
-# Tests whether the JAGS model can accurately recover known parameter values
-# from simulated data. Runs 100 iterations with varying true parameters.
-# =============================================================================
+#
+# recovery_eef.R
+# Parameter recovery for the EEF model (Yang et al. 2025).
+# We simulate data with known parameter values and then try to recover those
+# values by fitting the model. Good recovery means the model is identifiable
+# and our estimation procedure works.
+#
 
 # Dependencies
 required_packages <- c("R2jags", "parallel", "ggpubr", "extraDistr", "truncnorm")
@@ -174,8 +175,8 @@ infer_mu_cons <- sapply(results_list, function(x) x$infer_mu_cons)
 end_time <- Sys.time()
 cat("Total time:", round(difftime(end_time, start_time, units = "mins"), 1), "minutes\n")
 
-# Save Results
-output_dir_data <- "outputs/recovery"
+# Save the raw results for later inspection
+output_dir_data <- "data/processed/recovery/eef"
 dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
 
 saveRDS(results_list, file.path(output_dir_data, "recovery_eef.rds"))
@@ -198,7 +199,7 @@ pl4 <- plot_recovery(true_mu_cons, infer_mu_cons, "mu_cons (Consistency)")
 
 final_plot <- ggarrange(pl1, pl2, pl3, pl4, nrow = 2, ncol = 2)
 
-output_dir <- "plots/recovery"
+output_dir <- "figures/recovery"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 ggsave(file.path(output_dir, "recovery_eef.png"), final_plot,
     width = 12, height = 10, dpi = 150
