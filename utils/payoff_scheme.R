@@ -1,25 +1,10 @@
-# Modified IGT Payoff Schedule - Ahn et al. (2014) Exact Schedule
-#
-# This file provides the exact payoff schedule used in the Ahn et al. (2014)
-# datasets (HC, Amphetamine, Heroin groups). 
-#
-# Key Features of Modified IGT (vs Original):
-# - Variable gains (not constant $100/$50)
-# - Increasing loss magnitudes for Decks B and D across positions
-# - 60 trials per deck (but we extend to 100 by cycling)
-
-#' Generate Modified IGT Payoff - Exact Ahn 2014 Schedule
-#'
-#' Returns the exact payoff structure used in Ahn et al. (2014) datasets.
-#' This uses hardcoded schedules matching the original experimental task.
-#'
-#' @param ntrials Number of trials (default 100)
-#' @param scale Logical, if TRUE divide all values by 100
-#' @return List with $gain and $loss matrices (ntrials x 4)
+# Ahn 2014 modified IGT payoff schedule
+# hardcoded from the original task - gains vary trial to trial,
+# losses get bigger as you go through the deck (especially B and D)
+# each deck has 60 cards, we just cycle if someone picks >60 from one deck
 
 generate_modified_igt_payoff <- function(ntrials = 100, scale = FALSE) {
-    # GAINS - Exact schedule from Ahn 2014
-    # Note: Original schedule has 60 values, we repeat for 100 trials
+    # gains for each deck position (A and B are bad decks, C and D are good)
 
     gain_A_60 <- c(
         100, 120, 80, 90, 110, 100, 80, 120, 110, 90,
@@ -57,8 +42,7 @@ generate_modified_igt_payoff <- function(ntrials = 100, scale = FALSE) {
         75, 85, 70, 75, 85, 95, 55, 65, 80, 65
     )
 
-    # LOSSES - Exact schedule from Ahn 2014
-    # Deck A: Frequent small losses (50% of trials)
+    # losses - A and C hit you often with small ones, B and D hit rarely but hard
     loss_A_60 <- c(
         0, 0, -150, 0, -300, 0, -200, 0, -250, -350,
         0, -350, 0, -250, -200, 0, -300, -150, -250, 0,
@@ -68,9 +52,7 @@ generate_modified_igt_payoff <- function(ntrials = 100, scale = FALSE) {
         0, -350, 0, -250, -200, 0, -300, -150, -250, 0
     )
 
-    # Deck B: Infrequent large losses (increasing magnitude)
-    # Position 9: -1250, Position 14: -1500, Position 21: -1750,
-    # Position 32: -2000, Position 46: -2250, Position 58: -2500
+    # deck B: big hits at positions 9, 14, 21, 32, 46, 58 (getting worse each time)
     loss_B_60 <- c(
         0, 0, 0, 0, 0, 0, 0, 0, -1250, 0,
         0, 0, 0, -1500, 0, 0, 0, 0, 0, 0,
@@ -80,7 +62,6 @@ generate_modified_igt_payoff <- function(ntrials = 100, scale = FALSE) {
         0, 0, 0, 0, 0, 0, 0, -2500, 0, 0
     )
 
-    # Deck C: Frequent small losses
     loss_C_60 <- c(
         0, 0, -50, 0, -50, 0, -50, 0, -50, -50,
         0, -25, -75, 0, -25, 0, -25, -75, 0, -50,
@@ -90,7 +71,7 @@ generate_modified_igt_payoff <- function(ntrials = 100, scale = FALSE) {
         -25, -25, -25, -25, -25, -25, -75, -25, -50, -75
     )
 
-    # Deck D: Infrequent small losses (increasing magnitude)
+    # deck D: infrequent but increasing losses
     loss_D_60 <- c(
         0, 0, 0, 0, 0, 0, 0, 0, 0, -250,
         0, 0, 0, 0, 0, 0, 0, 0, 0, -275,
@@ -100,12 +81,11 @@ generate_modified_igt_payoff <- function(ntrials = 100, scale = FALSE) {
         0, 0, 0, 0, 0, 0, 0, -375, 0, 0
     )
 
-    # Extend to ntrials by cycling (if needed)
+    # if someone picks >60 from one deck, just cycle back to start
     extend_schedule <- function(vec, n) {
         if (n <= length(vec)) {
             return(vec[1:n])
         } else {
-            # Cycle the schedule
             return(rep(vec, ceiling(n / length(vec)))[1:n])
         }
     }
@@ -133,16 +113,14 @@ generate_modified_igt_payoff <- function(ntrials = 100, scale = FALSE) {
 }
 
 
-#' Get net payoff matrix (gain + loss)
-#'
-#' Convenience function for models that use net outcomes
+# just adds gain + loss together for models that want net outcome
 get_net_payoff <- function(ntrials = 100, scale = FALSE) {
     payoff <- generate_modified_igt_payoff(ntrials, scale = scale)
     return(payoff$gain + payoff$loss)
 }
 
 
-#' Verify payoff structure
+# quick sanity check - prints out what the schedule looks like
 verify_payoff <- function(ntrials = 100) {
     payoff <- generate_modified_igt_payoff(ntrials)
     net <- payoff$gain + payoff$loss
