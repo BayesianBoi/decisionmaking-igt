@@ -1,49 +1,54 @@
+# EEF Model (Individual) - for posterior predictive checks
+# Same equations as hierarchical but fit to single subject
+#
+# Equations:
+#   V(t) = G(t)^theta - |L(t)|^theta
+#   E_chosen(t) = (1-lambda)*E(t-1) + V(t)
+#   E_unchosen(t) = (1-lambda)*E(t-1)
+#   X_chosen(t) = 0
+#   X_unchosen(t) = lambda*X(t-1) + (1-lambda)*phi
+
 model {
 
-# EEF model for single subject PPC
-# same logic as hierarchical but no pooling
+  # uniform priors for individual-level estimation
+  theta ~ dunif(1.0E-6, 1)   # value sensitivity
+  lam   ~ dunif(0, 1)        # forgetting rate
+  phi   ~ dunif(-5, 5)       # exploration bonus
+  cons  ~ dunif(0, 5)        # consistency (pre-transform)
 
-  # flat priors - let the data speak
-  theta ~ dunif(1.0E-6, 1)   # cant be exactly 0
-  lam   ~ dunif(0, 1)
-  phi   ~ dunif(-5, 5)
-  cons  ~ dunif(0, 5)
-
-  # C = 3^beta - 1 gives inverse temperature scaling
+  # C = 3^c - 1
   C <- pow(3, cons) - 1
 
-  # Initial values at t=1
+  # initialize at t=1
   for (d in 1:4) {
     Exploit[1,d] <- 0
     Explore[1,d] <- 0
-
-    # Define p at t=1 so p has dimension [1:ntrials, 1:4] in the output
     p[1,d] <- 0.25
     exp_p[1,d] <- 1
   }
 
   for (t in 2:ntrials) {
 
-    # Value function: V(t) = Gain(t)^theta - |Loss(t)|^theta
+    # V(t) = Gain^theta - |Loss|^theta
     V[t] <- pow(Gain[t-1], theta) - pow(abs(Loss[t-1]), theta)
 
     for (d in 1:4) {
 
-      # Exploitation updates
+      # exploitation: decays then chosen gets V added
       Exploit_decay[t,d]  <- (1 - lam) * Exploit[t-1,d]
       Exploit_chosen[t,d] <- (1 - lam) * Exploit[t-1,d] + V[t]
       Exploit[t,d] <- ifelse(d == x[t-1], Exploit_chosen[t,d], Exploit_decay[t,d])
 
-      # Exploration updates
+      # exploration: chosen resets, unchosen drifts toward phi
       Explore_unchosen[t,d] <- lam * Explore[t-1,d] + (1 - lam) * phi
       Explore[t,d] <- ifelse(d == x[t-1], 0, Explore_unchosen[t,d])
 
-      # Combined value and linear predictor for softmax
+      # Q = E + X
       TotalVal[t,d] <- Exploit[t,d] + Explore[t,d]
       a[t,d] <- C * TotalVal[t,d]
     }
 
-    # Stable softmax: subtract max(a) before exp()
+    # stable softmax
     amax[t] <- max(a[t,1:4])
 
     for (d in 1:4) {
@@ -56,7 +61,6 @@ model {
       p[t,d] <- exp_p[t,d] / denom[t]
     }
 
-    # Choice likelihood (explicit slice)
     x[t] ~ dcat(p[t,1:4])
   }
 }
