@@ -1,13 +1,6 @@
 #!/usr/bin/env Rscript
-#
-# fit_pvl_delta.R
-# Fits the PVL-Delta model (Ahn et al. 2008) using hierarchical Bayesian estimation.
-# This is the classic prospect valence learning model with a delta learning rule.
-# Parameters include outcome sensitivity, loss aversion, learning rate, and
-# response consistency.
-#
-# Run with: Rscript fit_pvl_delta.R [HC|Amph|Hero]
-#
+# fit PVL-Delta - prospect theory + delta learning rule
+# usage: Rscript fit_pvl_delta.R [HC|Amph|Hero]
 
 required_packages <- c("R2jags", "parallel")
 new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]

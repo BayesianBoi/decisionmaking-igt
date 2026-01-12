@@ -1,10 +1,7 @@
-# Load and harmonize IGT data
-# Source: Ahn et al. (2014)
-# Note: Restricts analysis to Ahn et al. (2014) dataset; other sources excluded.
+# load IGT data from Ahn 2014
+# only using their dataset for now
 
-#' Load Ahn et al. (2014) data
-#' @param group One of "HC", "Amph", "Hero"
-#' @return Data frame with standardized columns
+# grab one group's data
 load_ahn_2014 <- function(group = "HC") {
   file_path <- sprintf("data/raw/Ahn_2014/IGTdata_%s.txt", group)
   dat <- read.table(file_path, header = TRUE)
@@ -23,8 +20,7 @@ load_ahn_2014 <- function(group = "HC") {
   return(dat_std)
 }
 
-#' Load all IGT datasets
-#' @return Data frame with all studies combined
+# load all three groups and stack them
 load_all_igt_data <- function() {
   # Load all datasets (Ahn 2014)
   datasets <- list(
@@ -49,17 +45,13 @@ load_all_igt_data <- function() {
   return(all_data)
 }
 
-#' Generate contiguous subject indices for JAGS
-#' @param dat Data frame containing subj_unique column
-#' @return Data frame with additional 'subj_idx' column for indexing
+# JAGS needs contiguous subject indices (1, 2, 3...) not the original IDs
 add_subject_index <- function(dat) {
   dat$subj_idx <- as.integer(factor(dat$subj_unique, levels = unique(dat$subj_unique)))
   return(dat)
 }
 
-#' Validate IGT data
-#' @param dat Data frame with IGT data
-#' @return TRUE if valid, stops with error otherwise
+# sanity checks - makes sure the data looks right before fitting
 validate_igt_data <- function(dat) {
   # Check required columns
   required_cols <- c("subj", "trial", "choice", "gain", "loss", "net", "study")

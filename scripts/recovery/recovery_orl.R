@@ -1,11 +1,8 @@
-# Dependencies
+# ORL parameter recovery - simulate data with known params and try to get them back
+# good recovery means r > 0.7 ish
+
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(R2jags, parallel, ggpubr, extraDistr, truncnorm)
-# Parameter Recovery: ORL Model
-# Purpose: Validate parameter estimation accuracy using simulated data.
-# Validation Criteria:
-#   - Correlation between true and recovered parameters (r > 0.7)
-#   - Absence of systematic bias
 
 set.seed(69420)
 

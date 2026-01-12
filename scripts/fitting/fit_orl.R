@@ -1,12 +1,6 @@
 #!/usr/bin/env Rscript
-#
-# fit_orl.R
-# Fits the Outcome-Representation Learning model (Haines et al. 2018) to IGT data.
-# ORL tracks both outcome values and choice frequencies, with separate learning
-# rates for wins and losses. A perseverance term captures motor repetition tendencies.
-#
-# Run with: Rscript fit_orl.R [HC|Amph|Hero]
-#
+# fit ORL model - tracks EV, win frequency, and perseverance separately
+# usage: Rscript fit_orl.R [HC|Amph|Hero]
 
 required_packages <- c("R2jags", "parallel")
 new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]

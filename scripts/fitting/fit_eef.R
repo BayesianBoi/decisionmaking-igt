@@ -1,12 +1,6 @@
 #!/usr/bin/env Rscript
-#
-# fit_eef.R
-# Fits the EEF model (Yang et al. 2025) using hierarchical Bayesian estimation.
-# The model separates exploration from exploitation and includes a forgetting
-# mechanism that lets unchosen deck values decay over time.
-#
-# Run with: Rscript fit_eef.R [HC|Amph|Hero]
-#
+# fit EEF model - exploration/exploitation + forgetting for unchosen decks
+# usage: Rscript fit_eef.R [HC|Amph|Hero]
 
 required_packages <- c("R2jags", "parallel")
 new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]

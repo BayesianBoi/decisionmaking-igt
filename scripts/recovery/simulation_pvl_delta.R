@@ -1,18 +1,10 @@
-# Dependencies
+# PVL-Delta simulation - generate fake data with known params
+# uses deck-based indexing (position = how many times that deck was picked)
+
 required_packages <- c("extraDistr", "truncnorm")
 new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
 if (length(new_packages)) install.packages(new_packages, repos = "http://cran.us.r-project.org")
 invisible(lapply(required_packages, library, character.only = TRUE))
-# PVL-Delta (Prospect Valence Learning - Delta Rule) Model Simulation
-#
-# Reference: Ahn et al. (2008) - following inspiration implementation
-#
-# The PVL-Delta model combines Prospect Theory with delta-rule learning.
-#
-# IMPLEMENTATION NOTES (matching inspiration code):
-# 1. Uses DECK-BASED indexing: payoff position depends on how many times
-#    that specific deck has been chosen, not the trial number
-# 2. Payoff structure: list with $gain and $loss matrices
 
 hier_PVL_sim <- function(payoff_struct, nsubs, ntrials,
                          mu_w, mu_A, mu_a, mu_theta,

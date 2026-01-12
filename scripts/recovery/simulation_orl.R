@@ -1,20 +1,10 @@
-# Dependencies
-# Dependencies
+# ORL simulation - generate fake data with known params
+# deck-based indexing, PS starts at 1, omega weights unbounded
+
 required_packages <- c("extraDistr", "truncnorm")
 new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
 if (length(new_packages)) install.packages(new_packages, repos = "http://cran.us.r-project.org")
 invisible(lapply(required_packages, library, character.only = TRUE))
-# ORL (Outcome-Representation Learning) Model Simulation
-#
-# Reference: Haines et al. (2018)
-#
-# Generates synthetic IGT choice data using the ORL model.
-#
-# Implementation Details:
-# 1. Deck-based indexing: Payoff position depends on cumulative choices for that deck.
-# 2. Perseverance (PS) initialized to 0.
-# 3. Weights (omega) are unbounded.
-# 4. Payoff structure input: List containing gain and loss matrices.
 
 hier_ORL_sim <- function(payoff_struct, nsubs, ntrials,
                          mu_a_rew, mu_a_pun, mu_K, mu_omega_f, mu_omega_p,

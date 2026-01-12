@@ -1,20 +1,9 @@
-# Dependencies
+# PVL-Delta parameter recovery
+# simulate with known params, fit, see if we get them back
+# want r > 0.7 and no obvious bias
+
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(R2jags, parallel, ggpubr, extraDistr, truncnorm)
-# Parameter Recovery: PVL-Delta Model
-#
-# Purpose: Validate that our JAGS implementation can accurately recover
-# known parameter values from simulated data.
-#
-# Method:
-#   1. Generate "true" group-level parameters (random draws)
-#   2. Simulate choices from the PVL-Delta model with these parameters
-#   3. Fit the JAGS model to recover parameters
-#   4. Compare true vs recovered (correlation should be high, r > 0.7)
-#
-# Success Criteria:
-#   - Strong correlations between true and recovered parameters
-#   - No systematic bias (regression slope near 1)
 
 set.seed(69420)
 

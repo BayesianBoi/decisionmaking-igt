@@ -1,13 +1,6 @@
 #!/usr/bin/env Rscript
-#
-# run_ppc.R
-# Posterior predictive check for all models (EEF, ORL, PVL-Delta).
-# Fits each subject individually and computes one-step-ahead prediction accuracy.
-# EEF uses separate gain/loss inputs while ORL and PVL-Delta use net outcomes.
-#
-# Run with: Rscript scripts/ppc/run_ppc.R <model> <group>
-# Example: Rscript scripts/ppc/run_ppc.R eef HC
-#
+# PPC - fit each subject, predict next choice, see how often we're right
+# usage: Rscript run_ppc.R <model> <group>
 
 required_packages <- c("R2jags", "parallel", "ggplot2")
 new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]

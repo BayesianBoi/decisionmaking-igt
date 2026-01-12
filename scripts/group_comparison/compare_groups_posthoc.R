@@ -1,14 +1,6 @@
 #!/usr/bin/env Rscript
-#
-# compare_groups_posthoc.R
-# Compares groups using the post-hoc HDI approach from Ahn et al. (2017).
-# We take the posterior samples from each group's fitted model and compute
-# difference distributions. If the 95% highest density interval for a difference
-# excludes zero then we have a credible group difference.
-#
-# Run with: Rscript scripts/group_comparison/compare_groups_posthoc.R <model>
-# Example: Rscript scripts/group_comparison/compare_groups_posthoc.R eef
-#
+# group comparison via HDI - if 95% interval excludes zero, groups differ
+# usage: Rscript compare_groups_posthoc.R <model>
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(HDInterval, ggplot2, dplyr, tidyr)
